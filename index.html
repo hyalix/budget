@@ -88,15 +88,25 @@ button { cursor: pointer; }
 .adjust.down { background: var(--danger-soft); }
 .month-box { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .month-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.month-line b { font-family: var(--font-display); font-size: 20px; }
+.month-line b { font-family: var(--font-display); font-size: 20px; white-space: nowrap; }
 .month-line b.neg { color: var(--danger); }
-.bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--line); }
-.bar span { display: block; height: 100%; transition: width .4s ease; }
-.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; font-size: 13px; }
-.legend div { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.legend i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
-.legend span { color: var(--muted); }
-.legend b { margin-left: auto; font-weight: 600; }
+.pace { position: relative; height: 10px; border-radius: 99px; background: var(--line); }
+.pace-fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--accent); transition: width .4s ease; }
+.pace-fill.over { background: var(--danger); }
+.pace-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
+.pace-text { font-size: 13px; color: var(--muted); margin: 0; }
+.calc summary { font-size: 13.5px; color: var(--accent); font-weight: 600; cursor: pointer; list-style: none; }
+.calc summary::-webkit-details-marker { display: none; }
+.calc summary::after { content: " ›"; }
+.calc[open] summary::after { content: " ⌄"; }
+.calc-lines { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 14px; }
+.calc-lines div { display: flex; justify-content: space-between; gap: 12px; }
+.calc-lines .minus span { color: var(--muted); }
+.calc-lines .minus b { color: var(--muted); font-weight: 500; }
+.calc-lines .sub-total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 600; }
+.calc-lines .grand { border-top: 2px solid var(--ink); padding-top: 6px; font-weight: 700; }
+.calc-lines .grand.neg b { color: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .pace-fill { transition: none; } }
 
 /* Cards */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -253,8 +263,12 @@ details.card[open] > summary::after { content: "–"; }
     <p class="adjust" id="adjust" hidden></p>
     <div class="month-box" id="monthBox" hidden>
       <div class="month-line num"><span class="sub">Reste pour le quotidien</span><b id="monthRemaining">—</b></div>
-      <div class="bar" id="bar" aria-hidden="true"></div>
-      <div class="legend num" id="legend"></div>
+      <div class="pace" aria-hidden="true"><span class="pace-fill" id="paceFill"></span><span class="pace-mark" id="paceMark"></span></div>
+      <p class="pace-text num" id="paceText"></p>
+      <details class="calc" id="calc">
+        <summary>Voir le calcul</summary>
+        <div class="calc-lines num" id="calcLines"></div>
+      </details>
     </div>
   </section>
 
@@ -692,23 +706,37 @@ details.card[open] > summary::after { content: "–"; }
     // Month summary
     $("monthBox").hidden = false;
     const mr = $("monthRemaining");
-    mr.textContent = fmt(c.remaining) + (c.view === "current" ? " · " + c.daysLeft + (c.daysLeft > 1 ? " jours" : " jour") : "");
+    mr.textContent = fmt(c.remaining);
     mr.classList.toggle("neg", c.remaining < 0);
-    const total = Math.max(c.income, c.fixed + c.subsReserved + c.savings + c.envReserved + c.spent, 1);
-    const segs = [
-      ["Fixes & abonnements", c.fixed + c.subsReserved, "var(--fixed)"],
-      ["Épargne", c.savings, "var(--save)"],
-      ["Enveloppes", c.envReserved, "var(--env)"],
-      ["Dépensé", c.spent, c.remaining < 0 ? "var(--danger)" : "var(--spent)"],
-      ["Reste", Math.max(c.remaining, 0), "var(--accent)"],
+    // One bar: how much of the day-to-day budget is used, with a mark where you "should" be by today.
+    const used = c.budget > 0 ? Math.min(c.spent / c.budget, 1) : 1;
+    const totalDays = periodDays(state.month);
+    const elapsed = c.view === "current" ? (totalDays - c.daysLeft + 1) / totalDays : (c.view === "past" ? 1 : 0);
+    $("paceFill").style.width = (used * 100).toFixed(1) + "%";
+    $("paceFill").classList.toggle("over", c.spent > c.budget * elapsed + 0.005 && c.view !== "future");
+    $("paceMark").style.left = (elapsed * 100).toFixed(1) + "%";
+    $("paceMark").hidden = c.view !== "current";
+    const pct = (x) => Math.round(x * 100) + " %";
+    $("paceText").textContent = c.view === "current"
+      ? fmt(c.spent) + " dépensés sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ") · encore " + c.daysLeft + (c.daysLeft > 1 ? " jours" : " jour")
+      : fmt(c.spent) + " dépensés sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ")";
+    // The calculation, as a receipt.
+    const rows = [
+      ["", "Revenus", c.income],
+      ["minus", "Fixes et abonnements", -(c.fixed + c.subsReserved)],
+      ["minus", "Épargne du mois", -c.savings],
+      ["minus", "Enveloppes", -c.envReserved],
+      ["sub-total", "Budget du quotidien", c.budget],
+      ["minus", "Déjà dépensé", -c.spent],
+      ["grand" + (c.remaining < 0 ? " neg" : ""), "Reste", c.remaining],
     ];
-    $("bar").innerHTML = segs.map(([, v, col]) => '<span style="width:' + (v / total * 100).toFixed(2) + "%;background:" + col + '"></span>').join("");
-    $("legend").innerHTML = "";
-    segs.forEach(([n, v, col]) => {
-      const d = document.createElement("div");
-      d.innerHTML = '<i style="background:' + col + '"></i><span></span><b></b>';
-      d.querySelector("span").textContent = n; d.querySelector("b").textContent = fmt(v);
-      $("legend").append(d);
+    const box = $("calcLines"); box.innerHTML = "";
+    rows.forEach(([cls, label, v]) => {
+      if (cls === "minus" && Math.abs(v) < 0.005) return;
+      const d = document.createElement("div"); if (cls) d.className = cls;
+      const a = document.createElement("span"); a.textContent = label;
+      const b = document.createElement("b"); b.textContent = (cls === "minus" ? "− " + fmt(-v) : fmt(v));
+      d.append(a, b); box.append(d);
     });
   }
 
