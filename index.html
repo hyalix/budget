@@ -189,6 +189,11 @@ button { cursor: pointer; }
 .sub-item .what div:last-child { font-size: 12.5px; color: var(--muted); }
 .sub-item .amt { font-weight: 600; }
 
+/* Edit an expense */
+button.what { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.edit-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; margin-bottom: 6px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.edit-panel .field { background: var(--surface); }
+
 .restore { display: block; text-align: center; cursor: pointer; }
 
 /* Per-card tiles */
@@ -1088,7 +1093,9 @@ details.card[open] > summary::after { content: "–"; }
         box.append(h);
       }
       const row = document.createElement("div"); row.className = "tx";
-      const what = document.createElement("div"); what.className = "what";
+      const what = document.createElement("button"); what.type = "button"; what.className = "what";
+      what.setAttribute("aria-label", "Modifier " + (t.label || t.cat));
+      what.onclick = () => { state.editTx = state.editTx === t.id ? null : t.id; state.pendingDelete = null; renderTx(); };
       const l1 = document.createElement("div"); l1.textContent = t.label || t.cat;
       const l2 = document.createElement("div"); l2.textContent = t.cat + " · " + cardName(t.card) + (t.sub ? " · abonnement" : "") + (t.orig ? " · " + fmtIn(Number(t.orig.amount), t.orig.currency) + " converti" : "");
       what.append(l1, l2);
@@ -1108,7 +1115,77 @@ details.card[open] > summary::after { content: "–"; }
         row.append(del);
       }
       box.append(row);
+      if (state.editTx === t.id) box.append(editPanel(t));
     });
+  }
+
+  // ---------- edit an expense ----------
+  function editPanel(t) {
+    const f = document.createElement("div"); f.className = "edit-panel";
+    const mk = (tag, cls, attrs) => { const e = document.createElement(tag); if (cls) e.className = cls; Object.assign(e, attrs || {}); return e; };
+    const desc = mk("input", "field", { type: "text", maxLength: 60, value: t.label || "", placeholder: "Description", id: "edit-desc-" + t.id });
+    desc.setAttribute("aria-label", "Description");
+    const amt = mk("input", "field num", { type: "number", inputMode: "decimal", step: "0.01", min: "0", value: String(t.amount), id: "edit-amt-" + t.id });
+    amt.setAttribute("aria-label", "Montant en " + mainCur());
+    const date = mk("input", "field", { type: "date", value: t.date, id: "edit-date-" + t.id });
+    date.setAttribute("aria-label", "Date");
+    const cat = mk("select", "field", { id: "edit-cat-" + t.id }); cat.setAttribute("aria-label", "Catégorie");
+    const catNames = (cfg().categories && cfg().categories.length ? cfg().categories : DEFAULT_CATS).map((c) => c.label);
+    if (!catNames.includes(t.cat)) catNames.push(t.cat);
+    catNames.forEach((n) => { const o = mk("option", "", { value: n, textContent: n }); cat.append(o); });
+    cat.value = t.cat;
+    const card = mk("select", "field", { id: "edit-card-" + t.id }); card.setAttribute("aria-label", "Carte");
+    const cards = (cfg().cards && cfg().cards.length ? cfg().cards : DEFAULT_CARDS).map((c) => [c.id, c.label]);
+    if (t.card && !cards.some(([id]) => id === t.card)) cards.push([t.card, cardName(t.card)]);
+    cards.forEach(([id, l]) => { const o = mk("option", "", { value: id, textContent: l }); card.append(o); });
+    card.value = t.card || (cards[0] || [""])[0];
+    const r1 = mk("div", "row"); r1.append(amt, date);
+    const r2 = mk("div", "row"); r2.append(cat, card);
+    const save = mk("button", "primary", { type: "button", textContent: "Enregistrer" });
+    const cancel = mk("button", "ghost", { type: "button", textContent: "Annuler" });
+    const r3 = mk("div", "row"); r3.append(save, cancel);
+    const note = mk("p", "msg");
+    if (t.orig) note.textContent = "Montant d'origine : " + fmtIn(Number(t.orig.amount), t.orig.currency) + ". Si vous changez le montant, il sera enregistré en " + mainCur() + ".";
+    cancel.onclick = () => { state.editTx = null; renderTx(); };
+    save.onclick = () => {
+      const a = round2(parseFloat(String(amt.value).replace(",", ".")));
+      if (!(a > 0)) { note.className = "msg err"; note.textContent = "Entrez un montant supérieur à 0."; amt.focus(); return; }
+      if (!date.value) { note.className = "msg err"; note.textContent = "Choisissez une date."; return; }
+      saveEdit(t.id, { label: desc.value.trim(), amount: a, date: date.value, cat: cat.value, card: card.value });
+    };
+    f.append(desc, r1, r2, r3, note);
+    return f;
+  }
+  async function saveEdit(id, patch) {
+    const old = state.items.find((x) => x.id === id);
+    if (!old) return;
+    const upd = { ...old, ...patch };
+    if (Math.abs(patch.amount - Number(old.amount)) >= 0.005) delete upd.orig;
+    const oldKey = old.date.slice(0, 7), newKey = upd.date.slice(0, 7);
+    state.items = inPeriod(upd.date, state.month) ? state.items.map((x) => (x.id === id ? upd : x)) : state.items.filter((x) => x.id !== id);
+    state.editTx = null;
+    if (oldKey === newKey) state.docs[oldKey] = (state.docs[oldKey] || []).map((x) => (x.id === id ? upd : x));
+    else {
+      state.docs[oldKey] = (state.docs[oldKey] || []).filter((x) => x.id !== id);
+      if (state.docs[newKey]) state.docs[newKey] = [...state.docs[newKey], upd];
+    }
+    render();
+    const msg = $("addMsg"); msg.className = "msg";
+    msg.textContent = "Dépense modifiée" + (inPeriod(upd.date, state.month) ? "." : " et déplacée vers la période " + periodTitle(periodOf(upd.date)) + ".");
+    if (state.mode !== "live") return;
+    try {
+      await queueWrite(monthPath(oldKey), { items: state.docs[oldKey] });
+      if (oldKey !== newKey) {
+        if (state.docs[newKey]) await queueWrite(monthPath(newKey), { items: state.docs[newKey] });
+        else {
+          const snap = await db.doc(monthPath(newKey)).get();
+          if (snap.exists) fresh(monthPath(newKey), snap.data());
+          const items = snap.exists ? [...(snap.data().items || [])] : [];
+          items.push(upd);
+          await queueWrite(monthPath(newKey), { items });
+        }
+      }
+    } catch (e) { msg.className = "msg err"; msg.textContent = errText(e); }
   }
 
   // ---------- add form ----------
