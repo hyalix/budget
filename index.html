@@ -314,7 +314,11 @@ details.card[open] > summary::after { content: "–"; }
   </section>
 
   <form class="card" id="addForm" autocomplete="off">
-    <h2>Ajouter une dépense</h2>
+    <div class="card-head">
+      <h2>Ajouter une dépense</h2>
+      <button type="button" class="chip-add" id="pasteBtn">Coller l'achat Apple Pay</button>
+    </div>
+    <input class="field" id="pasteBox" type="text" hidden placeholder="Touchez ici puis « Coller »" aria-label="Coller l'achat Apple Pay">
     <label class="amount-row">
       <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" aria-label="Montant">
       <span class="cur" id="curSymbol">$</span>
@@ -1203,6 +1207,63 @@ details.card[open] > summary::after { content: "–"; }
     catch (e) { msg.className = "msg err"; msg.textContent = errText(e); }
   }
 
+  // ---------- Apple Pay paste ----------
+  // The Shortcuts automation copies "BUDGET|amount|merchant|card" to the clipboard.
+  function parseAmount(raw) {
+    const txt = String(raw || "");
+    const cur = /€|EUR/i.test(txt) ? "EUR" : (/\$|CAD|CA\$/i.test(txt) ? "CAD" : null);
+    let n = txt.replace(/[^\d.,-]/g, "");
+    const lastDot = n.lastIndexOf("."), lastComma = n.lastIndexOf(",");
+    if (lastDot >= 0 && lastComma >= 0) {
+      n = lastComma > lastDot ? n.replace(/\./g, "").replace(",", ".") : n.replace(/,/g, "");
+    } else if (lastComma >= 0) {
+      n = /,\d{1,2}$/.test(n) ? n.replace(/,(?=\d{3}\b)/g, "").replace(",", ".") : n.replace(/,/g, "");
+    }
+    const v = Math.abs(parseFloat(n));
+    return { amount: v > 0 ? round2(v) : null, cur };
+  }
+  function matchCard(name) {
+    const cards = cfg().cards && cfg().cards.length ? cfg().cards : DEFAULT_CARDS;
+    const n = String(name || "").toLowerCase();
+    if (!n) return null;
+    const words = n.split(/[^a-z0-9à-ÿ]+/).filter((w) => w.length > 2);
+    return cards.find((c) => n.includes(c.label.toLowerCase()) || c.label.toLowerCase().includes(n))
+      || cards.find((c) => words.some((w) => c.label.toLowerCase().includes(w))) || null;
+  }
+  function applyPaste(text) {
+    const msg = $("addMsg"); msg.className = "msg";
+    const t = String(text || "").trim();
+    const parts = t.split("|");
+    if (parts[0].trim().toUpperCase() !== "BUDGET" || parts.length < 2) {
+      msg.className = "msg err"; msg.textContent = "Le presse-papiers ne contient pas d'achat Apple Pay. Il est copié par l'automatisation Raccourcis juste après le paiement.";
+      return false;
+    }
+    const { amount, cur } = parseAmount(parts[1]);
+    if (!amount) { msg.className = "msg err"; msg.textContent = "Montant illisible dans l'achat copié : " + parts[1]; return false; }
+    if (cur && cur !== mainCur() && state.fx) state.entryCur = cur; else state.entryCur = null;
+    $("amount").value = String(amount);
+    $("desc").value = (parts[2] || "").trim().slice(0, 60);
+    const card = matchCard(parts[3]);
+    if (card) { const inp = $("cardChips").querySelector('input[value="' + CSS.escape(card.id) + '"]'); if (inp) inp.checked = true; }
+    $("date").value = todayISO();
+    $("pasteBox").hidden = true; $("pasteBox").value = "";
+    renderCurPick();
+    msg.textContent = "Achat collé" + (card ? " (carte " + card.label + ")" : "") + ". Choisissez la catégorie puis touchez Ajouter.";
+    $("catChips").scrollIntoView({ block: "center", behavior: "smooth" });
+    return true;
+  }
+  async function pasteApplePay() {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) throw new Error("no clipboard");
+      const text = await navigator.clipboard.readText();
+      applyPaste(text);
+    } catch (e) {
+      // Reading refused or unsupported: let the person paste by hand.
+      $("pasteBox").hidden = false; $("pasteBox").focus();
+      $("addMsg").className = "msg"; $("addMsg").textContent = "Touchez le champ puis « Coller ».";
+    }
+  }
+
   async function addTx(ev) {
     ev.preventDefault();
     const msg = $("addMsg"); msg.className = "msg";
@@ -1475,6 +1536,9 @@ details.card[open] > summary::after { content: "–"; }
   buildCardChips();
   $("date").value = todayISO();
   $("addForm").addEventListener("submit", addTx);
+  $("pasteBtn").onclick = pasteApplePay;
+  $("pasteBox").addEventListener("paste", (e) => { const t = (e.clipboardData || window.clipboardData).getData("text"); if (t) { e.preventDefault(); applyPaste(t); } });
+  $("pasteBox").addEventListener("input", () => { if ($("pasteBox").value.includes("|")) applyPaste($("pasteBox").value); });
   $("amount").addEventListener("input", renderCurPick);
   $("curMain").onclick = () => { state.entryCur = null; renderCurPick(); };
   $("curOther").onclick = () => { if (state.fx) { state.entryCur = otherCur(); renderCurPick(); } };
