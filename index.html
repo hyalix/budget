@@ -1230,6 +1230,12 @@ details.card[open] > summary::after { content: "–"; }
     return cards.find((c) => n.includes(c.label.toLowerCase()) || c.label.toLowerCase().includes(n))
       || cards.find((c) => words.some((w) => c.label.toLowerCase().includes(w))) || null;
   }
+  function learnedCard(name) {
+    const n = String(name || "").trim().toLowerCase(); if (!n) return null;
+    const id = (cfg().cardAliases || {})[n];
+    const cards = cfg().cards && cfg().cards.length ? cfg().cards : DEFAULT_CARDS;
+    return cards.find((c) => c.id === id) || null;
+  }
   function applyPaste(text) {
     const msg = $("addMsg"); msg.className = "msg";
     const t = String(text || "").trim();
@@ -1243,15 +1249,19 @@ details.card[open] > summary::after { content: "–"; }
     if (cur && cur !== mainCur() && state.fx) state.entryCur = cur; else state.entryCur = null;
     $("amount").value = String(amount);
     // The automation may put the card before or after the merchant: use whichever field names a known card.
-    let merchant = parts[2], cardField = parts[3];
-    if (matchCard(parts[2]) && !matchCard(parts[3])) { merchant = parts[3]; cardField = parts[2]; }
+    // Alix's automation sends the card first, then the merchant; swap only if the 4th field is clearly the card.
+    let cardField = parts[2], merchant = parts[3];
+    if (matchCard(parts[3]) && !matchCard(parts[2])) { cardField = parts[3]; merchant = parts[2]; }
     $("desc").value = (merchant || "").trim().slice(0, 60);
-    const card = matchCard(cardField);
+    const card = matchCard(cardField) || learnedCard(cardField);
+    state.pasteCardName = (cardField || "").trim();
     if (card) { const inp = $("cardChips").querySelector('input[value="' + CSS.escape(card.id) + '"]'); if (inp) inp.checked = true; }
     $("date").value = todayISO();
     $("pasteBox").hidden = true; $("pasteBox").value = "";
     renderCurPick();
-    msg.textContent = "Achat collé" + (card ? " (carte " + card.label + ")" : "") + ". Choisissez la catégorie puis touchez Ajouter.";
+    msg.textContent = card
+      ? "Achat collé (carte " + card.label + "). Choisissez la catégorie puis touchez Ajouter."
+      : "Achat collé. Carte « " + (cardField || "").trim() + " » non reconnue : choisissez-la une fois, l'app s'en souviendra.";
     $("catChips").scrollIntoView({ block: "center", behavior: "smooth" });
     return true;
   }
@@ -1281,6 +1291,17 @@ details.card[open] > summary::after { content: "–"; }
     const cat = state.catEdit ? (state.lastCat || "Autre") : ((document.querySelector('input[name="cat"]:checked') || {}).value || "Autre");
     const card = (document.querySelector('input[name="card"]:checked') || {}).value || "";
     const tx = { id: uidGen(), amount, label: $("desc").value.trim(), cat, card, date, created: new Date().toISOString() };
+    if (state.pasteCardName && card) {
+      const key = state.pasteCardName.toLowerCase();
+      const aliases = { ...(cfg().cardAliases || {}) };
+      if (aliases[key] !== card) {
+        aliases[key] = card;
+        const next = { ...cfg(), cardAliases: aliases };
+        state.settings = next;
+        if (state.mode === "live") queueWrite(settingsPath(), next).catch(() => {});
+      }
+    }
+    state.pasteCardName = "";
     if (orig) tx.orig = orig;
     const docKey = date.slice(0, 7);
     const inView = inPeriod(date, state.month);
@@ -1394,6 +1415,7 @@ details.card[open] > summary::after { content: "–"; }
       subscriptions: cfg().subscriptions || [],
       subSkips: cfg().subSkips || [],
       lastClosed: cfg().lastClosed || "",
+      cardAliases: cfg().cardAliases || {},
     };
   }
   function updateTotals() {
@@ -1448,7 +1470,7 @@ details.card[open] > summary::after { content: "–"; }
 
   // ---------- store ----------
   function normalize(d) {
-    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "" };
+    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "", cardAliases: d.cardAliases || {} };
   }
   function subscribeSettings() {
     db.doc(settingsPath()).onSnapshot((snap) => {
