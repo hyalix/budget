@@ -1242,8 +1242,11 @@ details.card[open] > summary::after { content: "–"; }
     if (!amount) { msg.className = "msg err"; msg.textContent = "Montant illisible dans l'achat copié : " + parts[1]; return false; }
     if (cur && cur !== mainCur() && state.fx) state.entryCur = cur; else state.entryCur = null;
     $("amount").value = String(amount);
-    $("desc").value = (parts[2] || "").trim().slice(0, 60);
-    const card = matchCard(parts[3]);
+    // The automation may put the card before or after the merchant: use whichever field names a known card.
+    let merchant = parts[2], cardField = parts[3];
+    if (matchCard(parts[2]) && !matchCard(parts[3])) { merchant = parts[3]; cardField = parts[2]; }
+    $("desc").value = (merchant || "").trim().slice(0, 60);
+    const card = matchCard(cardField);
     if (card) { const inp = $("cardChips").querySelector('input[value="' + CSS.escape(card.id) + '"]'); if (inp) inp.checked = true; }
     $("date").value = todayISO();
     $("pasteBox").hidden = true; $("pasteBox").value = "";
