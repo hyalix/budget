@@ -688,7 +688,7 @@ details.card[open] > summary::after { content: "–"; }
       }
       if (c.goalToday <= 0) setText(sub, ["Le budget du mois est déjà utilisé. Chaque dépense réduit maintenant votre épargne."]);
       // Impact of today's spending on the days that follow
-      if (c.spentToday > 0 && c.goalToday > 0) {
+      if (c.goalToday > 0) {
         if (c.daysLeft > 1) {
           const rest = c.daysLeft - 1;
           const tomorrow = c.remaining / rest;
