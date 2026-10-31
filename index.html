@@ -735,9 +735,12 @@ details.card[open] > summary::after { content: "–"; }
     $("paceMark").style.left = (elapsed * 100).toFixed(1) + "%";
     $("paceMark").hidden = c.view !== "current";
     const pct = (x) => Math.round(x * 100) + " %";
-    $("paceText").textContent = c.view === "current"
-      ? fmt(c.spent) + " dépensés sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ") · encore " + c.daysLeft + (c.daysLeft > 1 ? " jours" : " jour")
-      : fmt(c.spent) + " dépensés sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ")";
+    // The bar only covers day-to-day spending: say so, and give the all-in total next to it.
+    const allSpent = sum(state.items);
+    const outside = allSpent - c.spent;
+    $("paceText").textContent = fmt(c.spent) + " dépensés au quotidien sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ")"
+      + (c.view === "current" ? " · encore " + c.daysLeft + (c.daysLeft > 1 ? " jours" : " jour") : "")
+      + (outside > 0.005 ? ". Total du mois : " + fmt(allSpent) + " (dont " + fmt(outside) + " d'enveloppes et d'abonnements, comptés à part)." : ".");
     // The calculation, as a receipt.
     const rows = [
       ["", "Revenus", c.income],
@@ -745,7 +748,7 @@ details.card[open] > summary::after { content: "–"; }
       ["minus", "Épargne du mois", -c.savings],
       ["minus", "Enveloppes", -c.envReserved],
       ["sub-total", "Budget du quotidien", c.budget],
-      ["minus", "Déjà dépensé", -c.spent],
+      ["minus", "Déjà dépensé au quotidien", -c.spent],
       ["grand" + (c.remaining < 0 ? " neg" : ""), "Reste", c.remaining],
     ];
     const box = $("calcLines"); box.innerHTML = "";
