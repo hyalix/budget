@@ -92,7 +92,9 @@ button { cursor: pointer; }
 .month-line b.neg { color: var(--danger); }
 .pace { position: relative; height: 10px; border-radius: 99px; background: var(--line); }
 .pace-fill { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--accent); transition: width .4s ease; }
+.pace-fill.ahead { background: var(--save); }
 .pace-fill.over { background: var(--danger); }
+.pace-note { font-size: 13px; margin: 0; color: var(--ink); }
 .pace-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
 .pace-text { font-size: 13px; color: var(--muted); margin: 0; }
 .calc summary { font-size: 13.5px; color: var(--accent); font-weight: 600; cursor: pointer; list-style: none; }
@@ -270,6 +272,7 @@ details.card[open] > summary::after { content: "–"; }
       <div class="month-line num"><span class="sub">Reste pour le quotidien</span><b id="monthRemaining">—</b></div>
       <div class="pace" aria-hidden="true"><span class="pace-fill" id="paceFill"></span><span class="pace-mark" id="paceMark"></span></div>
       <p class="pace-text num" id="paceText"></p>
+      <p class="pace-note num" id="paceNote" hidden></p>
       <details class="calc" id="calc">
         <summary>Voir le calcul</summary>
         <div class="calc-lines num" id="calcLines"></div>
@@ -722,7 +725,13 @@ details.card[open] > summary::after { content: "–"; }
     const totalDays = periodDays(state.month);
     const elapsed = c.view === "current" ? (totalDays - c.daysLeft + 1) / totalDays : (c.view === "past" ? 1 : 0);
     $("paceFill").style.width = (used * 100).toFixed(1) + "%";
-    $("paceFill").classList.toggle("over", c.spent > c.budget * elapsed + 0.005 && c.view !== "future");
+    // Red only when the month's day-to-day budget is gone; gold when spending runs ahead of the calendar.
+    const ahead = c.view === "current" && c.spent > c.budget * elapsed + 0.005;
+    $("paceFill").classList.toggle("over", c.remaining < 0);
+    $("paceFill").classList.toggle("ahead", ahead && c.remaining >= 0);
+    const note = $("paceNote");
+    note.hidden = !(ahead && c.remaining >= 0);
+    if (!note.hidden) note.textContent = "Vous avez utilisé " + Math.round(used * 100) + " % du budget alors que " + Math.round(elapsed * 100) + " % du mois est passé. C'est pour ça que l'objectif du jour a baissé ; il remonte dès que vous dépensez moins que lui.";
     $("paceMark").style.left = (elapsed * 100).toFixed(1) + "%";
     $("paceMark").hidden = c.view !== "current";
     const pct = (x) => Math.round(x * 100) + " %";
