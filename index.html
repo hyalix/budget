@@ -164,6 +164,9 @@ button { cursor: pointer; }
 .cur-pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .fx-note { font-size: 12.5px; color: var(--muted); min-width: 0; }
 .seg button:disabled { opacity: .4; cursor: default; }
+.mode-seg button { font-size: 14px; padding: 6px 13px; }
+.tx .amt.in { color: var(--accent); }
+.tx-day.in-head { color: var(--accent); }
 
 /* New category */
 .chip-add { padding: 6px 11px; border-radius: 99px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); font-size: 13.5px; font-weight: 600; }
@@ -323,9 +326,13 @@ details.card[open] > summary::after { content: "–"; }
 
   <form class="card" id="addForm" autocomplete="off">
     <div class="card-head">
-      <h2>Ajouter une dépense</h2>
+      <div class="seg mode-seg" role="group" aria-label="Type d'ajout">
+        <button type="button" id="modeOut" aria-pressed="true">Dépense</button>
+        <button type="button" id="modeIn" aria-pressed="false">Argent reçu</button>
+      </div>
       <button type="button" class="chip-add" id="pasteBtn">Coller l'achat Apple Pay</button>
     </div>
+    <p class="hint" id="inHint" hidden>L'argent reçu s'ajoute au budget du quotidien de la période : votre objectif du jour monte tout de suite.</p>
     <input class="field" id="pasteBox" type="text" hidden placeholder="Touchez ici puis « Coller »" aria-label="Coller l'achat Apple Pay">
     <label class="amount-row">
       <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" aria-label="Montant">
@@ -339,7 +346,7 @@ details.card[open] > summary::after { content: "–"; }
       <span class="fx-note num" id="fxNote"></span>
     </div>
     <input class="field" id="desc" type="text" maxlength="60" placeholder="Description (ex. café, Uber…)" aria-label="Description">
-    <div class="group">
+    <div class="group" id="catGroup">
       <div class="label">Catégorie</div>
       <div class="chips" id="catChips" role="radiogroup" aria-label="Catégorie"></div>
       <div class="new-cat" id="newCatRow" hidden>
@@ -354,7 +361,7 @@ details.card[open] > summary::after { content: "–"; }
       </div>
     </div>
     <div class="group">
-      <div class="label">Carte utilisée</div>
+      <div class="label" id="cardLabel">Carte utilisée</div>
       <div class="chips" id="cardChips" role="radiogroup" aria-label="Carte utilisée"></div>
     </div>
     <div class="row">
@@ -611,9 +618,11 @@ details.card[open] > summary::after { content: "–"; }
     return (s.envelopes || []).filter((e) => e.cat && Number(e.amount) > 0 && !seen.has(e.cat) && seen.add(e.cat))
       .map((e) => ({ id: e.id, cat: e.cat, amount: Number(e.amount) }));
   }
+  function receivedIn(s, key) { return (s.extras || []).filter((x) => inPeriod(x.date, key)); }
   function compute() {
     const s = cfg();
-    const income = sum(s.incomes), fixed = sum(s.fixed);
+    const baseIncome = sum(s.incomes), received = sum(receivedIn(s, state.month));
+    const income = baseIncome + received, fixed = sum(s.fixed);
     const savings = savingsFor(s, state.month).amount;
     // Envelopes: money set aside per category; their spending does not touch the daily goal.
     // An envelope that runs over takes the excess from the day-to-day budget.
@@ -637,7 +646,7 @@ details.card[open] > summary::after { content: "–"; }
     const remaining = round2(budget - spent);
     const now = currentPeriod();
     const today = todayISO();
-    const r = { income, fixed, subsReserved, savings, budget, spent, remaining, envStats, envReserved, envCats, view: state.month === now ? "current" : (state.month > now ? "future" : "past") };
+    const r = { income, baseIncome, received, fixed, subsReserved, savings, budget, spent, remaining, envStats, envReserved, envCats, view: state.month === now ? "current" : (state.month > now ? "future" : "past") };
     if (r.view === "current") {
       const t0 = new Date(); const midnight = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate());
       const daysLeft = Math.round((periodEnd(state.month) - midnight) / 86400000);   // today included
@@ -743,7 +752,8 @@ details.card[open] > summary::after { content: "–"; }
       + (outside > 0.005 ? ". Total du mois : " + fmt(allSpent) + " (dont " + fmt(outside) + " d'enveloppes et d'abonnements, comptés à part)." : ".");
     // The calculation, as a receipt.
     const rows = [
-      ["", "Revenus", c.income],
+      ["", "Revenus", c.baseIncome],
+      ["plus", "Argent reçu", c.received],
       ["minus", "Fixes et abonnements", -(c.fixed + c.subsReserved)],
       ["minus", "Épargne du mois", -c.savings],
       ["minus", "Enveloppes", -c.envReserved],
@@ -753,10 +763,10 @@ details.card[open] > summary::after { content: "–"; }
     ];
     const box = $("calcLines"); box.innerHTML = "";
     rows.forEach(([cls, label, v]) => {
-      if (cls === "minus" && Math.abs(v) < 0.005) return;
+      if ((cls === "minus" || cls === "plus") && Math.abs(v) < 0.005) return;
       const d = document.createElement("div"); if (cls) d.className = cls;
       const a = document.createElement("span"); a.textContent = label;
-      const b = document.createElement("b"); b.textContent = (cls === "minus" ? "− " + fmt(-v) : fmt(v));
+      const b = document.createElement("b"); b.textContent = (cls === "minus" ? "− " + fmt(-v) : cls === "plus" ? "+ " + fmt(v) : fmt(v));
       d.append(a, b); box.append(d);
     });
   }
@@ -963,7 +973,7 @@ details.card[open] > summary::after { content: "–"; }
         if (snap.exists) items = items.concat(snap.data().items || []);
       }
       items = items.filter((t) => inPeriod(t.date, key));
-      const income = sum(s.incomes), fixed = sum(s.fixed), spent = sum(items);
+      const income = sum(s.incomes) + sum(receivedIn(s, key)), fixed = sum(s.fixed), spent = sum(items);
       state.rollover = { key, income, fixed, spent, saved: round2(income - fixed - spent) };
       renderRollover();
     } catch (e) { /* retried at next load */ }
@@ -1078,6 +1088,7 @@ details.card[open] > summary::after { content: "–"; }
       if (!stats[k]) stats[k] = { label: cardName(t.card), total: 0, n: 0 };
       stats[k].total += Number(t.amount); stats[k].n += 1;
     });
+    receivedIn(cfg(), state.month).forEach((x) => { if (x.card && stats[x.card]) stats[x.card].received = (stats[x.card].received || 0) + Number(x.amount); });
     const all = sum(state.items);
     $("cardTotal").textContent = "Total " + fmt(all);
     Object.values(stats).sort((a, b) => b.total - a.total).forEach((st) => {
@@ -1085,7 +1096,7 @@ details.card[open] > summary::after { content: "–"; }
       const tile = document.createElement("div"); tile.className = "tile";
       const n = document.createElement("div"); n.className = "tile-name"; n.textContent = st.label;
       const a = document.createElement("div"); a.className = "tile-amt num"; a.textContent = fmt(st.total);
-      const m = document.createElement("div"); m.className = "tile-meta num"; m.textContent = st.n + (st.n > 1 ? " dépenses" : " dépense") + " · " + pct + " %";
+      const m = document.createElement("div"); m.className = "tile-meta num"; m.textContent = st.n + (st.n > 1 ? " dépenses" : " dépense") + " · " + pct + " %" + (st.received ? " · +" + fmt(st.received) + " reçus" : "");
       const bar = document.createElement("div"); bar.className = "cat-track"; bar.innerHTML = '<span style="width:' + pct + '%"></span>';
       tile.append(n, a, m, bar); box.append(tile);
     });
@@ -1095,7 +1106,34 @@ details.card[open] > summary::after { content: "–"; }
     const box = $("txList");
     box.innerHTML = "";
     if (!state.itemsLoaded) { box.innerHTML = '<p class="empty">Chargement…</p>'; return; }
-    if (!state.items.length) { box.innerHTML = '<p class="empty">Ajoutez votre première dépense avec le formulaire ci-dessus.</p>'; return; }
+    const rec = receivedIn(cfg(), state.month).sort((a, b) => b.date.localeCompare(a.date));
+    if (rec.length) {
+      const h = document.createElement("div"); h.className = "tx-day in-head"; h.textContent = "Argent reçu";
+      box.append(h);
+      rec.forEach((x) => {
+        const row = document.createElement("div"); row.className = "tx";
+        const what = document.createElement("div"); what.className = "what";
+        const l1 = document.createElement("div"); l1.textContent = x.label || "Argent reçu";
+        const l2 = document.createElement("div");
+        l2.textContent = dayTitle(x.date) + (x.card ? " · " + cardName(x.card) : "") + (x.orig ? " · " + fmtIn(Number(x.orig.amount), x.orig.currency) + " converti" : "");
+        what.append(l1, l2);
+        const amt = document.createElement("div"); amt.className = "amt in num"; amt.textContent = "+" + fmt(Number(x.amount));
+        row.append(what, amt);
+        if (state.pendingDelete === x.id) {
+          const c = document.createElement("div"); c.className = "confirm";
+          const yes = document.createElement("button"); yes.className = "yes"; yes.textContent = "Supprimer"; yes.onclick = () => deleteReceived(x.id);
+          const no = document.createElement("button"); no.className = "no"; no.textContent = "Annuler"; no.onclick = () => { state.pendingDelete = null; renderTx(); };
+          c.append(yes, no); row.append(c);
+        } else {
+          const del = document.createElement("button"); del.className = "del"; del.textContent = "×";
+          del.setAttribute("aria-label", "Supprimer " + (x.label || "cet argent reçu"));
+          del.onclick = () => { state.pendingDelete = x.id; renderTx(); };
+          row.append(del);
+        }
+        box.append(row);
+      });
+    }
+    if (!state.items.length) { if (!rec.length) box.innerHTML = '<p class="empty">Ajoutez votre première dépense avec le formulaire ci-dessus.</p>'; return; }
     const sorted = [...state.items].sort((a, b) => (b.date + b.created).localeCompare(a.date + a.created));
     let currentDay = null;
     sorted.forEach((t) => {
@@ -1366,6 +1404,48 @@ details.card[open] > summary::after { content: "–"; }
     }
   }
 
+  function setMode(m) {
+    state.addMode = m;
+    const inMode = m === "in";
+    $("modeOut").setAttribute("aria-pressed", !inMode);
+    $("modeIn").setAttribute("aria-pressed", inMode);
+    $("catGroup").hidden = inMode;
+    $("pasteBtn").hidden = inMode;
+    $("pasteBox").hidden = true;
+    $("inHint").hidden = !inMode;
+    $("cardLabel").textContent = inMode ? "Reçu sur" : "Carte utilisée";
+    $("desc").placeholder = inMode ? "D'où vient l'argent ? (ex. Maman, remboursement)" : "Description (ex. café, Uber…)";
+    $("addBtn").textContent = inMode ? "Ajouter au budget" : "Ajouter";
+    $("addMsg").className = "msg"; $("addMsg").textContent = "";
+  }
+  async function addReceived(amount, orig) {
+    const msg = $("addMsg");
+    const date = $("date").value || todayISO();
+    const card = (document.querySelector('input[name="card"]:checked') || {}).value || "";
+    const x = { id: uidGen(), amount, label: $("desc").value.trim(), card, date, created: new Date().toISOString() };
+    if (orig) x.orig = orig;
+    const next = { ...cfg(), extras: [...(cfg().extras || []), x] };
+    const before = compute();
+    state.settings = next;
+    $("amount").value = ""; $("desc").value = "";
+    render();
+    const inView = inPeriod(date, state.month);
+    if (inView && state.month === currentPeriod()) {
+      const after = compute();
+      msg.textContent = "+" + fmt(amount) + " ajoutés au budget. Objectif du jour : " + fmt(Math.max(before.goalToday, 0)) + " → " + fmt(Math.max(after.goalToday, 0)) + ".";
+    } else msg.textContent = "+" + fmt(amount) + " ajoutés au budget de la période " + periodTitle(periodOf(date)) + ".";
+    if (state.mode !== "live") return;
+    try { await queueWrite(settingsPath(), next); }
+    catch (e) { msg.className = "msg err"; msg.textContent = errText(e); }
+  }
+  async function deleteReceived(id) {
+    const next = { ...cfg(), extras: (cfg().extras || []).filter((x) => x.id !== id) };
+    state.settings = next; state.pendingDelete = null; render();
+    if (state.mode !== "live") return;
+    try { await queueWrite(settingsPath(), next); }
+    catch (e) { $("addMsg").className = "msg err"; $("addMsg").textContent = errText(e); }
+  }
+
   async function addTx(ev) {
     ev.preventDefault();
     const msg = $("addMsg"); msg.className = "msg";
@@ -1376,6 +1456,7 @@ details.card[open] > summary::after { content: "–"; }
     if (converted === null) { msg.className = "msg err"; msg.textContent = "Pas de taux de change disponible. Ajoutez un taux dans « Mon plan » ou saisissez le montant en " + mainCur() + "."; return; }
     const amount = round2(converted);
     const orig = cur !== mainCur() ? { amount: typed, currency: cur, rate: state.fx.cadPerEur, rateDate: state.fx.date } : null;
+    if (state.addMode === "in") { await addReceived(amount, orig); return; }
     const date = $("date").value || todayISO();
     const cat = state.catEdit ? (state.lastCat || "Autre") : ((document.querySelector('input[name="cat"]:checked') || {}).value || "Autre");
     const card = (document.querySelector('input[name="card"]:checked') || {}).value || "";
@@ -1505,6 +1586,7 @@ details.card[open] > summary::after { content: "–"; }
       subSkips: cfg().subSkips || [],
       lastClosed: cfg().lastClosed || "",
       cardAliases: cfg().cardAliases || {},
+      extras: cfg().extras || [],
     };
   }
   function updateTotals() {
@@ -1559,7 +1641,7 @@ details.card[open] > summary::after { content: "–"; }
 
   // ---------- store ----------
   function normalize(d) {
-    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "", cardAliases: d.cardAliases || {} };
+    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "", cardAliases: d.cardAliases || {}, extras: d.extras || [] };
   }
   function subscribeSettings() {
     db.doc(settingsPath()).onSnapshot((snap) => {
@@ -1650,6 +1732,8 @@ details.card[open] > summary::after { content: "–"; }
   buildCardChips();
   $("date").value = todayISO();
   $("addForm").addEventListener("submit", addTx);
+  $("modeOut").onclick = () => setMode("out");
+  $("modeIn").onclick = () => setMode("in");
   $("pasteBtn").onclick = pasteApplePay;
   $("pasteBox").addEventListener("paste", (e) => { const t = (e.clipboardData || window.clipboardData).getData("text"); if (t) { e.preventDefault(); applyPaste(t); } });
   $("pasteBox").addEventListener("input", () => { if ($("pasteBox").value.includes("|")) applyPaste($("pasteBox").value); });
