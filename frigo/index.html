@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Frigo Malin">
+<meta name="theme-color" content="#FBF7F2">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>Frigo Malin</title>
+<style>
+:root{--bg:#FBF7F2;--card:#fff;--ink:#2A2522;--mute:#7A716B;--line:#EDE6DE;--green:#2F6B4F;--green-soft:#E4EFE8;--tomato:#D9572F;--tomato-soft:#FCE9E2;--amber:#A87208;--amber-soft:#FBF1DA;--red:#C8362B;--red-soft:#FBE3E0;color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4}
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+button{font-family:inherit;cursor:pointer}
+.top{display:flex;justify-content:space-between;align-items:center;padding:calc(14px + env(safe-area-inset-top)) 20px 4px;max-width:560px;margin:0 auto}
+.top h1{font-size:26px;margin:0;letter-spacing:-.02em}
+.top p{margin:2px 0 0;color:var(--mute);font-size:14px}
+.icon-btn{border:0;background:var(--card);width:42px;height:42px;border-radius:50%;font-size:19px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex:none}
+main{padding:4px 16px 24px;max-width:560px;margin:0 auto}
+.card{background:var(--card);border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(60,40,20,.05)}
+.card h2{font-size:18px;margin:0 0 10px;letter-spacing:-.01em}
+.muted{color:var(--mute);font-size:14px}
+.grow{flex:1;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:14px;padding:13px 16px;font-weight:600;font-size:15px;background:var(--green);color:#fff;text-decoration:none;line-height:1.2}
+.btn:disabled{opacity:.4}
+.btn.big{width:100%;padding:16px;font-size:16px}
+.btn.ghost{background:var(--green-soft);color:var(--green)}
+.btn.warn{background:var(--tomato-soft);color:var(--tomato)}
+.btn.line{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.row{display:flex;gap:8px}
+.row>.btn{flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font-size:14px;color:var(--ink);white-space:nowrap}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.hero{background:linear-gradient(155deg,#2F6B4F,#3F8763);color:#fff}
+.hero .muted{color:rgba(255,255,255,.82)}
+.hero .chip{background:rgba(255,255,255,.14);border-color:transparent;color:#fff}
+.hero .chip.on{background:#fff;color:var(--green)}
+.badge{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;white-space:nowrap;flex:none}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-orange{background:var(--tomato-soft);color:var(--tomato)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-green{background:var(--green-soft);color:var(--green)}
+.b-grey{background:#F1EEEA;color:var(--mute)}
+.item{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .em{font-size:24px;width:32px;text-align:center;flex:none}
+.item .name{font-weight:600}
+.sec-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mute);margin:22px 4px 6px}
+.em-big{font-size:46px;line-height:1}
+.urg{background:var(--tomato-soft);color:var(--tomato);border-radius:12px;padding:8px 12px;font-size:14px;font-weight:600;margin:12px 0 0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--bg);border-radius:14px;padding:12px}
+.stat b{display:block;font-size:22px;letter-spacing:-.02em}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:5}
+.tabs button{flex:1;border:0;background:none;font-size:22px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;color:var(--mute);opacity:.55;position:relative}
+.tabs button span{font-size:11px;font-weight:600}
+.tabs button.on{opacity:1;color:var(--green)}
+.tabs .dot{position:absolute;top:2px;left:calc(50% + 8px);background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:999px;padding:1px 5px}
+.sheet-bg{position:fixed;inset:0;background:rgba(30,20,10,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.sheet-bg.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:90vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--bg);border-radius:24px 24px 0 0;padding:10px 18px calc(24px + env(safe-area-inset-bottom));transform:translateY(105%);visibility:hidden;transition:transform .25s ease,visibility .25s;max-width:560px;margin:0 auto;z-index:10}
+.sheet.on{transform:none;visibility:visible}
+.sheet h2{margin:6px 0 10px;font-size:20px}
+.grab{width:40px;height:5px;border-radius:3px;background:#DDD3C8;margin:0 auto 10px}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=search],textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:16px;font-family:inherit;color:var(--ink);-webkit-appearance:none;appearance:none}
+textarea{min-height:110px;resize:vertical}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--mute);margin:14px 0 6px}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:12px 16px;border-radius:14px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;width:max-content;max-width:88vw;text-align:center;z-index:20}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.check{width:24px;height:24px;border-radius:8px;border:2px solid #D8CFC5;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:14px;color:#fff;font-weight:700}
+.check.on{background:var(--green);border-color:var(--green)}
+.empty{text-align:center;padding:28px 12px;color:var(--mute)}
+.empty .em{font-size:40px}
+.empty b{display:block;color:var(--ink);margin:6px 0}
+.steps{padding-left:22px;margin:0}
+.steps li{margin:8px 0}
+.stepper{display:flex;align-items:center;gap:14px}
+.stepper button{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:20px;color:var(--ink)}
+.done .name{text-decoration:line-through;color:var(--mute)}
+.scroll-x{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin:12px -16px;padding-left:16px;padding-right:16px;scrollbar-width:none}
+.scroll-x::-webkit-scrollbar{display:none}
+.howto li{margin:10px 0}
+.spin{width:36px;height:36px;border:4px solid var(--green-soft);border-top-color:var(--green);border-radius:50%;margin:0 auto 14px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.sheet a{color:var(--green);font-weight:600}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1>Frigo Malin</h1><p id="today"></p></div>
+  <button class="icon-btn" onclick="openSettings()" aria-label="Réglages">⚙️</button>
+</header>
+<main id="view"></main>
+<nav class="tabs">
+  <button data-tab="home">🍳<span>Ce soir</span></button>
+  <button data-tab="fridge">🧊<span>Frigo</span></button>
+  <button data-tab="shop">🛒<span>Courses</span></button>
+  <button data-tab="recipes">📖<span>Recettes</span></button>
+</nav>
+<div id="sheet-bg" class="sheet-bg" onclick="closeSheet()"></div>
+<div id="sheet" class="sheet"></div>
+<div id="toast" class="toast"></div>
+<input type="file" id="photoIn" accept="image/*" style="display:none" onchange="onPhoto(this)">
+
+<script>
+/* ============ CATALOGUE D'INGRÉDIENTS ============
+   id: [nom, rayon, jours de conservation par défaut, emoji] */
+const ING={
+  oeufs:['Œufs','Frais',21,'🥚'], lait:['Lait','Frais',7,'🥛'], beurre:['Beurre','Frais',30,'🧈'],
+  creme:['Crème fraîche','Frais',10,'🥛'], fromage_rape:['Fromage râpé','Frais',14,'🧀'],
+  parmesan:['Parmesan','Frais',30,'🧀'], feta:['Feta','Frais',10,'🧀'], mozzarella:['Mozzarella','Frais',5,'🧀'],
+  yaourt:['Yaourt nature','Frais',14,'🥣'], jambon:['Jambon','Frais',4,'🥓'], lardons:['Lardons','Frais',7,'🥓'],
+  tofu:['Tofu','Frais',7,'⬜'], kimchi:['Kimchi','Frais',30,'🌶️'], pesto:['Pesto','Frais',14,'🌿'],
+  poulet:['Blancs de poulet','Viande & poisson',2,'🍗'], boeuf_hache:['Bœuf haché','Viande & poisson',2,'🥩'],
+  saumon:['Saumon','Viande & poisson',2,'🐟'], saucisses:['Saucisses','Viande & poisson',5,'🌭'],
+  tomates:['Tomates','Fruits & légumes',5,'🍅'], courgette:['Courgette','Fruits & légumes',6,'🥒'],
+  poivron:['Poivron','Fruits & légumes',7,'🫑'], brocoli:['Brocoli','Fruits & légumes',5,'🥦'],
+  epinards:['Épinards frais','Fruits & légumes',4,'🥬'], champignons:['Champignons','Fruits & légumes',4,'🍄'],
+  carotte:['Carottes','Fruits & légumes',14,'🥕'], salade:['Salade','Fruits & légumes',4,'🥬'],
+  concombre:['Concombre','Fruits & légumes',6,'🥒'], avocat:['Avocat','Fruits & légumes',4,'🥑'],
+  citron:['Citron','Fruits & légumes',14,'🍋'], ciboule:['Oignon vert','Fruits & légumes',6,'🌱'],
+  oignon:['Oignon','Fruits & légumes',30,'🧅'], ail:['Ail','Fruits & légumes',30,'🧄'],
+  pommes_terre:['Pommes de terre','Fruits & légumes',21,'🥔'], patate_douce:['Patate douce','Fruits & légumes',14,'🍠'],
+  gingembre:['Gingembre','Fruits & légumes',21,'🫚'],
+  pain:['Pain','Boulangerie',3,'🥖'], pain_mie:['Pain de mie','Boulangerie',7,'🍞'], tortillas:['Tortillas','Boulangerie',14,'🌮'],
+  pates:['Pâtes','Épicerie',365,'🍝'], riz:['Riz','Épicerie',365,'🍚'], nouilles:['Nouilles (ramen, udon…)','Épicerie',180,'🍜'],
+  lentilles:['Lentilles corail','Épicerie',365,'🫘'], pois_chiches:['Pois chiches (boîte)','Épicerie',365,'🫘'],
+  haricots_rouges:['Haricots rouges (boîte)','Épicerie',365,'🫘'], mais:['Maïs (boîte)','Épicerie',365,'🌽'],
+  thon:['Thon (boîte)','Épicerie',365,'🐟'], tomates_conc:['Tomates concassées / coulis','Épicerie',365,'🥫'],
+  lait_coco:['Lait de coco','Épicerie',365,'🥥'], curry:['Curry (poudre ou pâte)','Épicerie',365,'🍛'],
+  sauce_soja:['Sauce soja','Épicerie',365,'🍶'], gochujang:['Gochujang','Épicerie',365,'🌶️'], miel:['Miel','Épicerie',365,'🍯'],
+  petits_pois:['Petits pois surgelés','Surgelés',180,'🟢']
+};
+const RAYS=['Fruits & légumes','Frais','Viande & poisson','Boulangerie','Épicerie','Surgelés','Autre'];
+
+/* ============ RECETTES ============
+   i = ingrédients principaux, o = en option, t = minutes, v = végétarien */
+const R=[
+{id:'r1',n:'Pâtes pesto & poulet',e:'🍝',t:15,v:false,i:['pates','pesto','poulet'],o:['parmesan','tomates'],s:["Fais cuire les pâtes dans une grande casserole d'eau salée.","Pendant ce temps, coupe le poulet en dés et fais-le dorer 6–7 min à la poêle avec un filet d'huile.","Égoutte les pâtes en gardant un fond d'eau de cuisson.","Mélange pâtes, poulet et 2 c. à soupe de pesto (un peu d'eau de cuisson si c'est sec). Parmesan par-dessus."]},
+{id:'r2',n:'Carbonara',e:'🥓',t:15,v:false,i:['pates','lardons','oeufs','parmesan'],o:[],s:["Fais cuire les pâtes.","Fais dorer les lardons à sec dans une poêle.","Dans un bol, bats 1 œuf + 1 jaune avec beaucoup de parmesan et du poivre.","Hors du feu, mélange pâtes égouttées, lardons et le mélange œuf avec un peu d'eau de cuisson pour que ce soit crémeux (pas sur le feu, sinon ça fait une omelette)."]},
+{id:'r3',n:'Pâtes crème & champignons',e:'🍄',t:15,v:true,i:['pates','champignons','creme','ail'],o:['parmesan','epinards'],s:["Fais cuire les pâtes.","Émince les champignons et l'ail, fais-les revenir 5 min à la poêle avec un peu d'huile.","Ajoute 3 c. à soupe de crème, sel, poivre et laisse réduire 2 min.","Mélange avec les pâtes égouttées."]},
+{id:'r4',n:'Pâtes thon-tomate',e:'🐟',t:15,v:false,i:['pates','thon','tomates_conc','oignon'],o:['parmesan'],s:["Fais cuire les pâtes.","Fais revenir l'oignon émincé 3 min, ajoute les tomates concassées et laisse mijoter 5 min.","Ajoute le thon égoutté, réchauffe 1 min, sel, poivre.","Mélange avec les pâtes."]},
+{id:'r5',n:'One-pot pasta tomate & épinards',e:'🍅',t:20,v:true,i:['pates','tomates_conc','epinards','ail'],o:['mozzarella','feta','parmesan'],s:["Dans une casserole : pâtes crues, tomates concassées, ail émincé, sel, et de l'eau à hauteur (environ 2 fois le volume des pâtes).","Fais cuire à feu moyen en remuant souvent jusqu'à ce que les pâtes soient cuites et la sauce épaisse (~12 min).","Ajoute les épinards à la fin : ils fondent en 1 min.","Fromage par-dessus si tu en as. Une seule casserole à laver !"]},
+{id:'r6',n:'Riz sauté au kimchi (kimchi bokkeumbap)',e:'🌶️',t:15,v:false,i:['riz','kimchi','oeufs'],o:['jambon','ciboule','gochujang','sauce_soja'],s:["Idéal avec du riz de la veille (sinon cuis-en et étale-le pour qu'il refroidisse un peu).","Coupe le kimchi en petits morceaux et fais-le revenir 3 min avec un filet d'huile.","Ajoute le riz (+ jambon en dés, 1 c. à café de gochujang si tu veux) et fais sauter 4 min.","Sers avec un œuf au plat dessus et de l'oignon vert."]},
+{id:'r7',n:'Riz cantonais express',e:'🍚',t:15,v:false,i:['riz','oeufs','jambon','petits_pois'],o:['ciboule','sauce_soja'],s:["Bats 2 œufs et fais-les brouiller dans une poêle huilée, puis réserve.","Fais sauter les petits pois 2 min, ajoute le riz cuit et le jambon en dés.","Remets les œufs, un trait de sauce soja et mélange 2 min."]},
+{id:'r8',n:'Riz, œuf, beurre & soja (gyeran bap)',e:'🥚',t:5,v:true,i:['riz','oeufs','beurre','sauce_soja'],o:['ciboule','kimchi'],s:["Réchauffe un bol de riz (riz de la veille ou riz micro-ondable).","Fais cuire un œuf au plat, jaune coulant.","Pose l'œuf et une noisette de beurre sur le riz chaud, ajoute 1 c. à café de sauce soja.","Mélange tout. Oignon vert ou kimchi à côté si tu en as."]},
+{id:'r9',n:'Omelette vide-frigo',e:'🍳',t:10,v:true,i:['oeufs'],o:['fromage_rape','champignons','epinards','poivron','courgette','tomates','ciboule'],s:["Coupe en petits morceaux les légumes qui traînent (champignons, poivron, courgette, épinards…).","Fais-les revenir 4 min dans une poêle huilée.","Bats 2–3 œufs avec sel et poivre, verse sur les légumes.","Ajoute le fromage, couvre et laisse cuire 3 min à feu doux."]},
+{id:'r10',n:'Shakshuka',e:'🍳',t:20,v:true,i:['oeufs','tomates_conc','oignon','poivron'],o:['feta','pain','ail'],s:["Fais revenir l'oignon et le poivron émincés 5 min.","Ajoute les tomates concassées, sel, poivre (paprika ou cumin si tu as) et laisse mijoter 5 min.","Creuse 2 petits trous, casse un œuf dans chacun, couvre et cuis 5–6 min.","Feta émiettée dessus, à manger avec du pain."]},
+{id:'r11',n:'Curry de pois chiches au coco',e:'🍛',t:25,v:true,i:['pois_chiches','lait_coco','curry','oignon'],o:['epinards','riz','tomates_conc','gingembre'],s:["Fais revenir l'oignon émincé 3 min.","Ajoute 1 c. à soupe de curry, mélange 1 min.","Ajoute les pois chiches égouttés et le lait de coco, laisse mijoter 10 min.","Épinards à la fin si tu en as, sers avec du riz. Ça se garde 3 jours : fais-en pour 2 soirs."]},
+{id:'r12',n:'Dahl de lentilles corail',e:'🫘',t:25,v:true,i:['lentilles','lait_coco','tomates_conc','oignon','curry'],o:['riz','gingembre','epinards','ail'],s:["Fais revenir l'oignon (et ail/gingembre) 3 min.","Ajoute 1 c. à soupe de curry, mélange 1 min.","Ajoute 100 g de lentilles rincées, les tomates, le lait de coco et un verre d'eau.","Laisse mijoter 15–18 min en remuant jusqu'à ce que ce soit crémeux. Avec du riz."]},
+{id:'r13',n:'Poulet curry coco',e:'🍗',t:25,v:false,i:['poulet','lait_coco','curry','oignon'],o:['riz','brocoli','gingembre'],s:["Coupe le poulet en dés et fais-le dorer 5 min.","Ajoute l'oignon émincé 2 min, puis 1 c. à soupe de curry.","Verse le lait de coco (+ brocoli en petits bouquets) et laisse mijoter 10 min.","Sers avec du riz."]},
+{id:'r14',n:'Poulet soja-miel, riz & brocoli',e:'🍯',t:20,v:false,i:['poulet','sauce_soja','miel','riz','brocoli'],o:['ail','gingembre','ciboule'],s:["Lance la cuisson du riz.","Coupe le poulet en dés et fais-le dorer 6 min.","Fais cuire le brocoli en petits bouquets 3 min à l'eau bouillante (ou à la poêle, couvert, avec un fond d'eau).","Ajoute sur le poulet 2 c. à soupe de soja + 1 c. à soupe de miel, laisse caraméliser 1–2 min. Sers avec le riz et le brocoli."]},
+{id:'r15',n:'Quesadillas',e:'🌮',t:10,v:true,i:['tortillas','fromage_rape'],o:['haricots_rouges','mais','poivron','avocat','champignons'],s:["Sur une moitié de tortilla : du fromage + ce que tu as (haricots, maïs, poivron, restes…).","Replie et fais dorer 2–3 min de chaque côté dans une poêle sans huile.","Coupe en triangles. Avec de l'avocat écrasé, c'est encore mieux."]},
+{id:'r16',n:'Wraps poulet & crudités',e:'🌯',t:15,v:false,i:['tortillas','poulet','salade','tomates'],o:['avocat','yaourt','concombre','fromage_rape'],s:["Coupe le poulet en lamelles et fais-le cuire 6–7 min à la poêle.","Sauce rapide : yaourt + un peu de citron + sel (si tu as).","Garnis la tortilla : salade, tomate, poulet, sauce.","Roule bien serré."]},
+{id:'r17',n:'Chili con carne',e:'🌶️',t:30,v:false,i:['boeuf_hache','haricots_rouges','tomates_conc','oignon'],o:['mais','riz','poivron'],s:["Fais revenir l'oignon 3 min.","Ajoute le bœuf et fais-le cuire 5 min en l'émiettant.","Ajoute les tomates et les haricots égouttés (+ maïs), sel, cumin/paprika si tu as.","Laisse mijoter 15 min. Avec du riz. Encore meilleur le lendemain : fais-en double."]},
+{id:'r18',n:'Chili sin carne',e:'🌱',t:30,v:true,i:['haricots_rouges','mais','tomates_conc','oignon','poivron'],o:['riz','avocat','fromage_rape'],s:["Fais revenir l'oignon et le poivron en dés 5 min.","Ajoute les tomates, les haricots et le maïs égouttés, sel, cumin/paprika si tu as.","Laisse mijoter 15 min.","Avec du riz, de l'avocat ou du fromage. Se garde 3 jours."]},
+{id:'r19',n:'Bowl saumon, riz & avocat',e:'🍣',t:15,v:false,i:['saumon','riz','avocat'],o:['concombre','sauce_soja','ciboule','citron'],s:["Lance la cuisson du riz.","Fais cuire le saumon à la poêle, 4 min de chaque côté (côté peau en premier).","Coupe l'avocat (et le concombre) en tranches.","Dans un bol : riz, saumon émietté, avocat, concombre, un filet de sauce soja."]},
+{id:'r20',n:'Saumon au four & légumes',e:'🐟',t:25,v:false,i:['saumon','courgette','citron'],o:['brocoli','poivron','tomates'],s:["Préchauffe le four à 200 °C.","Coupe les légumes en morceaux sur une plaque, huile + sel, enfourne 10 min.","Ajoute le saumon avec des rondelles de citron, enfourne encore 12 min."]},
+{id:'r21',n:'Croque-monsieur',e:'🥪',t:10,v:false,i:['pain_mie','jambon','fromage_rape','beurre'],o:[],s:["Beurre l'extérieur de 2 tranches de pain de mie.","Mets jambon + fromage entre les deux.","Poêle 3 min de chaque côté, couvert (ou four 10 min à 200 °C)."]},
+{id:'r22',n:'Tartines avocat & œuf',e:'🥑',t:10,v:true,i:['pain','avocat','oeufs'],o:['citron','feta','tomates'],s:["Fais griller le pain.","Écrase l'avocat avec sel et un peu de citron.","Fais un œuf au plat (ou mollet : 6 min dans l'eau bouillante).","Avocat sur le pain, œuf dessus."]},
+{id:'r23',n:'Salade grecque',e:'🥗',t:10,v:true,i:['tomates','concombre','feta'],o:['oignon','pois_chiches','citron','pain'],s:["Coupe tomates et concombre en morceaux, l'oignon très finement.","Ajoute la feta en cubes.","Huile d'olive, sel (citron, origan si tu as).","Ajoute des pois chiches pour que ça cale plus."]},
+{id:'r24',n:'Salade pommes de terre & thon',e:'🥔',t:25,v:false,i:['pommes_terre','thon','oeufs'],o:['oignon','mais','salade'],s:["Fais cuire les pommes de terre en morceaux 15 min dans l'eau salée.","Ajoute les œufs dans la même eau pour les 10 dernières minutes (œufs durs).","Égoutte, laisse tiédir, écale les œufs.","Mélange pommes de terre, thon, œufs en quartiers, huile + vinaigre ou moutarde."]},
+{id:'r25',n:'Poêlée pommes de terre, lardons & crème',e:'🥓',t:30,v:false,i:['pommes_terre','lardons','oignon','creme'],o:['fromage_rape'],s:["Coupe les pommes de terre en petits dés et fais-les cuire 15 min à la poêle huilée, couvert, en remuant.","Ajoute les lardons et l'oignon émincé, 5 min.","Ajoute la crème (+ fromage) et laisse 2 min."]},
+{id:'r26',n:'Patate douce rôtie & pois chiches',e:'🍠',t:35,v:true,i:['patate_douce','pois_chiches','yaourt'],o:['feta','epinards','citron'],s:["Préchauffe le four à 210 °C.","Patate douce en cubes + pois chiches égouttés sur une plaque, huile, sel (paprika ou cumin si tu as), 25–30 min.","Sauce : yaourt + citron + sel.","Sers sur des épinards si tu en as, feta par-dessus."]},
+{id:'r27',n:'Ramen express',e:'🍜',t:10,v:true,i:['nouilles','oeufs'],o:['ciboule','champignons','epinards','kimchi','sauce_soja'],s:["Fais bouillir de l'eau avec l'assaisonnement (ou 1 c. à soupe de sauce soja + un cube de bouillon).","Ajoute les nouilles et les légumes (champignons, épinards) 3–4 min.","Casse un œuf dedans la dernière minute.","Oignon vert et kimchi par-dessus."]},
+{id:'r28',n:'Nouilles sautées aux légumes',e:'🥢',t:15,v:true,i:['nouilles','sauce_soja','carotte','poivron'],o:['oeufs','tofu','ciboule','ail','brocoli'],s:["Fais cuire les nouilles et égoutte-les.","Coupe les légumes en fines lamelles et fais-les sauter 4 min à feu vif.","Ajoute les nouilles + 2 c. à soupe de sauce soja, 2 min (un œuf brouillé si tu veux)."]},
+{id:'r29',n:'Tofu croustillant, brocoli & riz',e:'🥦',t:20,v:true,i:['tofu','brocoli','sauce_soja','riz'],o:['ail','miel','gingembre','ciboule'],s:["Lance la cuisson du riz.","Égoutte le tofu (presse-le dans du papier absorbant), coupe-le en cubes et fais-le dorer 8 min à la poêle huilée.","Ajoute le brocoli en petits bouquets 4 min.","Ajoute 2 c. à soupe de soja (+ miel, ail) 1 min pour tout enrober."]},
+{id:'r30',n:'Soupe de légumes anti-gaspi',e:'🥕',t:30,v:true,i:['carotte','pommes_terre','oignon'],o:['courgette','poivron','brocoli','creme','epinards'],s:["Coupe en morceaux tous les légumes qui commencent à faner.","Fais revenir l'oignon 3 min, ajoute les légumes, couvre d'eau + un cube de bouillon.","Laisse cuire 20 min, mixe, ajoute un peu de crème.","Se congèle très bien en portions."]},
+{id:'r31',n:'Saucisses-purée',e:'🌭',t:25,v:false,i:['saucisses','pommes_terre','lait','beurre'],o:[],s:["Épluche les pommes de terre, coupe-les en morceaux et fais-les cuire 15–18 min dans l'eau salée.","Fais cuire les saucisses 12 min à la poêle en les tournant.","Égoutte les pommes de terre, écrase-les avec du beurre et un peu de lait chaud, sel."]},
+{id:'r32',n:'Pizza tortilla',e:'🍕',t:12,v:true,i:['tortillas','tomates_conc','mozzarella'],o:['champignons','poivron','oignon'],s:["Préchauffe le four à 220 °C (ou utilise une poêle couverte).","Étale 2 c. à soupe de tomates concassées sur la tortilla, sel, origan si tu as.","Ajoute la mozzarella et les garnitures.","8 min au four, jusqu'à ce que ce soit doré."]},
+{id:'r33',n:'Pâtes courgette, citron & feta',e:'🍋',t:15,v:true,i:['pates','courgette','citron','feta'],o:['ail','epinards'],s:["Fais cuire les pâtes.","Coupe la courgette en demi-rondelles et fais-la revenir 6 min avec un peu d'ail.","Ajoute le zeste et le jus d'un demi-citron.","Mélange pâtes, courgette et feta émiettée."]},
+{id:'r34',n:'Bibimbap simplifié',e:'🍲',t:20,v:true,i:['riz','oeufs','carotte','epinards','gochujang'],o:['courgette','champignons','tofu','sauce_soja'],s:["Lance la cuisson du riz (ou réchauffe un reste).","Fais sauter la carotte en bâtonnets 3 min, puis les autres légumes ; les épinards 1 min seulement.","Fais un œuf au plat.","Dans un bol : riz, légumes en petits tas, œuf, 1 c. à café de gochujang. Mélange tout avant de manger."]}
+];
+
+/* ============ ÉTAT & STOCKAGE ============ */
+const KEY='frigoMalin.v1';
+const DEF={fridge:[],plan:[],planStart:null,list:[],meals:[],waste:[],favs:[],custom:{ings:{},recipes:[]},seen:false,
+  settings:{uber:30,home:5,hour:'18:00',veg:false,energy:20,nPlan:4,gkey:'',gmodel:''}};
+const clone=o=>JSON.parse(JSON.stringify(o));
+function load(){
+  try{const x=JSON.parse(localStorage.getItem(KEY));
+    if(x){const s=Object.assign(clone(DEF),x);s.settings=Object.assign({},DEF.settings,x.settings||{});s.custom=Object.assign({ings:{},recipes:[]},x.custom||{});return s}
+  }catch(e){}
+  return clone(DEF);
+}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+/* ============ OUTILS ============ */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>iso(new Date());
+function parse(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return iso(d)}
+function dl(exp){const t=new Date();return Math.round((parse(exp)-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/86400000)}
+function fmtDate(s,o){return parse(s).toLocaleDateString('fr-FR',o||{weekday:'short',day:'numeric',month:'short'})}
+function dlLabel(n){if(n<0)return n===-1?'périmé hier':'périmé ('+(-n)+' j)';if(n===0)return "aujourd'hui";if(n===1)return 'demain';if(n>=60)return 'longue conserv.';return 'dans '+n+' j'}
+function dlClass(n){return n<=0?'b-red':n<=2?'b-orange':n<=5?'b-amber':n>=60?'b-grey':'b-green'}
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const money=n=>Math.round(n)+' $';
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+function ig(id){const c=ING[id];if(c)return{id,name:c[0],ray:c[1],days:c[2],em:c[3]};const u=S.custom.ings[id];if(u)return Object.assign({id},u);return{id,name:id,ray:'Autre',days:7,em:'🍽️'}}
+const allIngIds=()=>Object.keys(ING).concat(Object.keys(S.custom.ings));
+function findIng(name){const q=norm(name);if(!q)return null;const ids=allIngIds();
+  return ids.find(id=>norm(ig(id).name)===q)||ids.find(id=>norm(ig(id).name).split(/[ (]/)[0]===q)||(q.length>=4?ids.find(id=>norm(ig(id).name).startsWith(q)):null)||null}
+const recipes=()=>R.concat(S.custom.recipes);
+const getR=id=>recipes().find(r=>r.id===id);
+
+/* ============ LOGIQUE ============ */
+function fridgeMap(){const m={};S.fridge.forEach(f=>{const d=dl(f.exp);if(d<-2)return;if(m[f.ing]===undefined||d<m[f.ing])m[f.ing]=d});return m}
+function analyze(r,fm){fm=fm||fridgeMap();
+  const have=r.i.filter(x=>x in fm),miss=r.i.filter(x=>!(x in fm)),optHave=(r.o||[]).filter(x=>x in fm);
+  let urg=0;const urgent=[];
+  have.concat(optHave).forEach(x=>{const d=fm[x];if(d<=1){urg+=5;urgent.push(x)}else if(d<=3){urg+=3;urgent.push(x)}else if(d<=5)urg+=1});
+  return{have,miss,optHave,urg,urgent,cov:have.length/r.i.length}}
+function score(r,a){return a.cov*10-a.miss.length*1.5+a.urg*2+a.optHave.length*.5+(S.favs.includes(r.id)?1:0)}
+const eligible=maxT=>recipes().filter(r=>r.t<=maxT&&(!S.settings.veg||r.v));
+
+function addToFridge(id,exp){S.fridge.push({id:uid(),ing:id,exp:exp||addDays(today(),ig(id).days),added:today()})}
+function removeOne(ing){const c=S.fridge.filter(f=>f.ing===ing).sort((a,b)=>a.exp<b.exp?-1:1)[0];if(c)S.fridge=S.fridge.filter(f=>f!==c)}
+function toList(ing){if(!S.list.some(l=>l.ing===ing&&!l.c))S.list.push({ing,c:false,src:'manual'})}
+
+/* ============ RENDU ============ */
+let tab='home';
+let sugg={list:[],idx:0};
+let rFilter='all',rQuery='';
+
+function render(){
+  document.getElementById('today').textContent=cap(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
+  document.getElementById('view').innerHTML={home:vHome,fridge:vFridge,shop:vShop,recipes:vRecipes}[tab]();
+  if(tab==='recipes')renderRecipeList();
+  const nUrg=S.fridge.filter(f=>dl(f.exp)<=2).length;
+  document.querySelectorAll('.tabs button').forEach(b=>{b.classList.toggle('on',b.dataset.tab===tab);
+    const old=b.querySelector('.dot');if(old)old.remove();
+    if(b.dataset.tab==='fridge'&&nUrg){const d=document.createElement('i');d.className='dot';d.textContent=nUrg;b.appendChild(d)}});
+}
+function go(t){tab=t;render();window.scrollTo(0,0)}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+
+function itemRow(f){const g=ig(f.ing),d=dl(f.exp);
+  return `<div class="item" onclick="itemSheet('${f.id}')"><div class="em">${g.em}</div><div class="grow"><div class="name">${esc(g.name)}</div>${d<60?`<div class="muted">jusqu'au ${fmtDate(f.exp,{day:'numeric',month:'short'})}</div>`:''}</div><span class="badge ${dlClass(d)}">${dlLabel(d)}</span></div>`}
+
+function vHome(){
+  const fm=fridgeMap();let h='';
+  const urgent=S.fridge.filter(f=>dl(f.exp)<=2).sort((a,b)=>a.exp<b.exp?-1:1);
+  if(urgent.length)h+=`<div class="card" style="background:var(--tomato-soft)"><h2>⏰ À utiliser vite</h2>${urgent.map(itemRow).join('')}</div>`;
+
+  const nx=S.plan.find(p=>!p.done&&getR(p.rid));
+  if(nx){const r=getR(nx.rid),done=S.plan.filter(p=>p.done).length;
+    h+=`<div class="card"><div class="sec-title" style="margin:0 0 6px">📅 Prévu dans ton plan · ${done}/${S.plan.length} fait</div>
+    <div class="item" style="padding:4px 0" onclick="showRecipe('${r.id}')"><div class="em-big">${r.e}</div><div class="grow"><div class="name" style="font-size:18px">${esc(r.n)}</div><div class="muted">${r.t} min</div></div></div>
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="cook('${r.id}')">Je cuisine ça</button><button class="btn ghost" onclick="showRecipe('${r.id}')">Recette</button></div></div>`}
+
+  h+=`<div class="card hero"><h2 style="font-size:22px">Ce soir, on mange quoi ?</h2><p class="muted" style="margin:0 0 12px">Choisis ton niveau d'énergie, je regarde ton frigo.</p>
+  <div class="chips">${[[10,'😴 Flemme · 10 min'],[20,'🙂 Normal · 20 min'],[45,'💪 Motivée · 45 min']].map(([t,l])=>`<button class="chip ${S.settings.energy==t?'on':''}" onclick="setEnergy(${t})">${l}</button>`).join('')}</div>
+  <button class="btn big" style="margin-top:14px;background:#fff;color:var(--green)" onclick="findIdea()">✨ Trouve-moi une idée</button></div>`;
+
+  if(sugg.list.length){const r=sugg.list[sugg.idx].r;
+    if(getR(r.id)){const a=analyze(r,fm);
+    h+=`<div class="card" id="reco"><div style="display:flex;gap:14px;align-items:center"><div class="em-big">${r.e}</div><div class="grow"><div class="muted">Idée ${sugg.idx+1}/${sugg.list.length} · ${r.t} min${r.v?' · végé':''}</div><h2 style="margin:2px 0 0">${esc(r.n)}</h2></div></div>
+    ${a.urgent.length?`<div class="urg">♻️ Ça utilise ${a.urgent.map(x=>esc(ig(x).name.toLowerCase())).join(', ')} avant que ça périme</div>`:''}
+    <p style="margin:12px 0">${a.miss.length?`🛒 Il te manque : <b>${a.miss.map(x=>esc(ig(x).name)).join(', ')}</b>`:'✅ Tu as tout ce qu\'il faut'}</p>
+    <div class="row"><button class="btn" onclick="cook('${r.id}')">Je cuisine ça</button><button class="btn ghost" onclick="showRecipe('${r.id}')">Recette</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn line" onclick="nextIdea()">↻ Autre idée</button>${a.miss.length?`<button class="btn line" onclick="addMissing('${r.id}')">+ À la liste</button>`:''}</div>
+    ${!S.fridge.length?'<p class="muted" style="margin:12px 0 0">Astuce : ajoute ce que tu as dans 🧊 Frigo pour des idées faites avec <i>ton</i> frigo.</p>':''}</div>`}}
+
+  h+=`<div class="card"><h2>🛵 Envie de commander ?</h2><p class="muted" style="margin:-4px 0 12px">Avant d'ouvrir Uber Eats, appuie ici.</p><button class="btn warn big" onclick="temptation()">J'allais commander…</button></div>`;
+
+  const m=today().slice(0,7),ms=S.meals.filter(x=>x.d.slice(0,7)===m);
+  const home=ms.filter(x=>x.type==='maison').length,ord=ms.filter(x=>x.type==='commande');
+  const spent=ord.reduce((s,x)=>s+(+x.amount||0),0),saved=home*Math.max(0,S.settings.uber-S.settings.home);
+  const waste=S.waste.filter(x=>x.d.slice(0,7)===m).length;
+  h+=`<div class="card"><h2>📊 Ce mois-ci</h2><div class="stats">
+  <div class="stat"><b>${home}</b><span class="muted">repas maison</span></div>
+  <div class="stat"><b>${ord.length}</b><span class="muted">commande${ord.length>1?'s':''} · ${money(spent)}</span></div>
+  <div class="stat"><b>~${money(saved)}</b><span class="muted">économisés*</span></div>
+  <div class="stat"><b>${waste}</b><span class="muted">produit${waste>1?'s':''} jeté${waste>1?'s':''}</span></div></div>
+  <p class="muted" style="font-size:12px;margin:10px 0 0">* Estimation : chaque repas maison compte ${money(S.settings.uber)} (ta commande moyenne) − ${money(S.settings.home)} (coût d'un repas maison). Modifiable dans ⚙️.</p>
+  <div class="row" style="margin-top:12px"><button class="btn line" onclick="logHome()">+ J'ai cuisiné</button><button class="btn line" onclick="logOrder()">+ J'ai commandé</button></div></div>`;
+  return h;
+}
+
+function vFridge(){
+  let h=`<div class="card"><h2>Ajouter des aliments</h2><button class="btn big" onclick="photoAdd()">📸 Photo du ticket ou des courses</button>
+  <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="scanBarcode()">▦ Code-barres</button><button class="btn ghost" onclick="addSheet()">✍️ À la main</button></div>
+  <p class="muted" style="margin:10px 0 0">Je mets une date limite estimée : corrige-la si l'emballage dit autre chose.</p></div>`;
+  if(!S.fridge.length)return h+`<div class="empty"><div class="em">🧊</div><b>Ton frigo est vide (dans l'app)</b>Ajoute ce que tu as déjà, ou fais tes courses depuis 🛒 : les articles cochés arrivent ici tout seuls.</div>`;
+  const items=S.fridge.map(f=>({f,d:dl(f.exp)})).sort((a,b)=>a.d-b.d);
+  [['⏰ À manger vite',x=>x.d<=2],['📆 Cette semaine',x=>x.d>2&&x.d<=7],['🙂 Tranquille',x=>x.d>7&&x.d<60],['🗄️ Placard & longue conservation',x=>x.d>=60]].forEach(([t,fn])=>{
+    const g=items.filter(fn);if(!g.length)return;
+    h+=`<div class="sec-title">${t} · ${g.length}</div><div class="card" style="padding:2px 14px">${g.map(x=>itemRow(x.f)).join('')}</div>`});
+  return h;
+}
+
+function vShop(){
+  let h=`<div class="card"><h2>📅 Planifier ma semaine</h2><p class="muted" style="margin:-4px 0 0">Je choisis des recettes qui utilisent ton frigo et <b>partagent les mêmes ingrédients</b> (moins d'achats, moins de gaspillage), puis je fais la liste.</p>
+  <label class="f">Combien de repas à la maison ?</label><div class="stepper"><button onclick="setN(-1)">−</button><b style="font-size:24px;min-width:26px;text-align:center">${S.settings.nPlan}</b><button onclick="setN(1)">+</button></div>
+  <label class="f">Temps max par repas</label><div class="chips">${[10,20,45].map(t=>`<button class="chip ${S.settings.energy==t?'on':''}" onclick="setEnergy(${t})">≤ ${t} min</button>`).join('')}</div>
+  <button class="btn big" style="margin-top:16px" onclick="genPlan()">${S.plan.length?'↻ Refaire mon plan':'✨ Générer mon plan'}</button></div>`;
+  if(S.plan.length){
+    h+=`<div class="sec-title">Mon plan</div><div class="card" style="padding:2px 14px">${S.plan.map((p,i)=>{const r=getR(p.rid);if(!r)return'';
+      return `<div class="item ${p.done?'done':''}"><div class="em" onclick="showRecipe('${r.id}')">${r.e}</div><div class="grow" onclick="showRecipe('${r.id}')"><div class="muted">${cap(fmtDate(addDays(S.planStart,i)))}</div><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min</div></div>${p.done?'<span class="badge b-green">fait ✓</span>':`<button class="chip" onclick="swapPlan(${i})" aria-label="Changer">↻</button><button class="chip" onclick="removePlan(${i})" aria-label="Retirer">✕</button>`}</div>`}).join('')}</div>
+    <button class="btn ghost big" onclick="exportICS()">🔔 Ajouter les rappels à mon calendrier</button>
+    <p class="muted" style="font-size:13px;margin:6px 4px 0">Un rappel chaque soir à ${S.settings.hour} : « Ce soir : … ». Heure modifiable dans ⚙️.</p>`}
+  h+=`<div class="sec-title">🛒 Liste de courses</div><div class="card"><form onsubmit="event.preventDefault();addListItem()" class="row"><input type="text" id="li" placeholder="Ajouter un article…" autocomplete="off" style="flex:1"><button class="btn" style="flex:none;width:52px">+</button></form>`;
+  if(!S.list.length)h+=`<p class="muted" style="margin:12px 0 0">Vide pour l'instant. Génère un plan ou ajoute des articles.</p>`;
+  else{
+    const by={};S.list.forEach((l,i)=>{const ray=l.ing?ig(l.ing).ray:'Autre';(by[ray]=by[ray]||[]).push([l,i])});
+    RAYS.forEach(ray=>{if(!by[ray])return;h+=`<div class="sec-title" style="margin-top:16px">${ray}</div>`+by[ray].map(([l,i])=>{const g=l.ing?ig(l.ing):{name:l.name,em:'🛍️'};
+      return `<div class="item" onclick="toggleItem(${i})"><span class="check ${l.c?'on':''}">${l.c?'✓':''}</span><div class="grow" style="${l.c?'text-decoration:line-through;color:var(--mute)':''}">${g.em} ${esc(g.name)}</div><button class="chip" style="padding:4px 10px" onclick="event.stopPropagation();delItem(${i})">✕</button></div>`}).join('')});
+    const nc=S.list.filter(x=>x.c).length;
+    h+=`<button class="btn big" style="margin-top:14px" ${nc?'':'disabled'} onclick="shoppingDone()">${nc?`✅ Courses faites : ranger ${nc} article${nc>1?'s':''} au frigo`:'Coche ce que tu as acheté'}</button><p class="muted" style="font-size:13px;margin:8px 0 0">Coche ce que tu as acheté, puis appuie : tout part dans ton frigo avec sa date limite.</p>`}
+  h+=`<button class="btn ghost big" style="margin-top:12px" onclick="photoAdd()">🧾 De retour des courses ? Photo du ticket</button>`;
+  return h+'</div>';
+}
+
+function vRecipes(){
+  const f=[['all','Toutes'],['now','✅ Faisable maintenant'],['quick','⚡ ≤ 10 min'],['veg','🌱 Végé'],['fav','❤️ Favoris'],['mine','✍️ Les miennes']];
+  return `<input type="search" placeholder="Chercher une recette ou un ingrédient…" value="${esc(rQuery)}" oninput="rQuery=this.value;renderRecipeList()" style="margin-top:8px">
+  <div class="chips scroll-x">${f.map(([k,l])=>`<button class="chip ${rFilter===k?'on':''}" onclick="rFilter='${k}';render()">${l}</button>`).join('')}</div>
+  <div id="rlist"></div><button class="btn ghost big" onclick="newRecipeSheet()">✍️ Ajouter ma propre recette</button>`;
+}
+function renderRecipeList(){
+  const fm=fridgeMap(),q=norm(rQuery);
+  let L=recipes().map(r=>({r,a:analyze(r,fm)}));
+  if(S.settings.veg)L=L.filter(x=>x.r.v);
+  L=L.filter(({r,a})=>rFilter==='now'?!a.miss.length:rFilter==='quick'?r.t<=10:rFilter==='veg'?r.v:rFilter==='fav'?S.favs.includes(r.id):rFilter==='mine'?r.custom:true);
+  if(q)L=L.filter(({r})=>norm(r.n).includes(q)||r.i.concat(r.o||[]).some(x=>norm(ig(x).name).includes(q)));
+  L.sort((x,y)=>(y.a.cov-x.a.cov)||(score(y.r,y.a)-score(x.r,x.a)));
+  const el=document.getElementById('rlist');if(!el)return;
+  el.innerHTML=L.length?`<div class="card" style="padding:2px 14px">${L.map(({r,a})=>`<div class="item" onclick="showRecipe('${r.id}')"><div class="em">${r.e}</div><div class="grow"><div class="name">${esc(r.n)}${S.favs.includes(r.id)?' ❤️':''}</div><div class="muted">${r.t} min · ${a.have.length}/${r.i.length} ingrédients au frigo</div></div>${a.miss.length?'':'<span class="badge b-green">tout ✓</span>'}</div>`).join('')}</div>`
+    :`<div class="empty"><div class="em">🔍</div><b>Aucune recette ici</b>${rFilter==='now'?'Ajoute ce que tu as dans 🧊 Frigo.':'Essaie un autre filtre.'}</div>`;
+}
+
+/* ============ FEUILLES (bottom sheets) ============ */
+function openSheet(html){const s=document.getElementById('sheet');s.innerHTML='<div class="grab"></div>'+html;s.classList.add('on');document.getElementById('sheet-bg').classList.add('on');s.scrollTop=0}
+function closeSheet(){stopScan();document.getElementById('sheet').classList.remove('on');document.getElementById('sheet-bg').classList.remove('on')}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* --- Ce soir --- */
+function setEnergy(t){S.settings.energy=t;save();if(tab==='home'&&sugg.list.length){findIdea(true);return}render()}
+function findIdea(noScroll){const fm=fridgeMap(),c=eligible(S.settings.energy);
+  if(!c.length){toast('Aucune recette avec ces filtres');return}
+  sugg.list=c.map(r=>{const a=analyze(r,fm);return{r,s:score(r,a)+Math.random()*1.2}}).sort((x,y)=>y.s-x.s);sugg.idx=0;render();
+  if(!noScroll)setTimeout(()=>{const e=document.getElementById('reco');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})},60)}
+function nextIdea(){sugg.idx=(sugg.idx+1)%sugg.list.length;render()}
+function addMissing(rid){const r=getR(rid),fm=fridgeMap();const miss=r.i.filter(x=>!(x in fm));miss.forEach(toList);save();render();toast(miss.length+' article'+(miss.length>1?'s':'')+' ajouté'+(miss.length>1?'s':'')+' à ta liste 🛒')}
+
+let cookSel=new Set(),cookPresent=[];
+function cook(rid){const r=getR(rid),fm=fridgeMap();
+  cookPresent=[...new Set(r.i.concat(r.o||[]))].filter(x=>x in fm);
+  cookSel=new Set(cookPresent.filter(x=>ig(x).days<=14));
+  openSheet(`<div style="text-align:center"><div style="font-size:48px">${r.e}</div><h2>Bon appétit ! 🎉</h2><p class="muted" style="margin-top:-4px">Qu'est-ce que tu as <b>terminé</b> ? Je le retire du frigo.</p></div><div id="cooklist" class="card" style="padding:2px 14px"></div><button class="btn big" onclick="cookDone('${rid}')">Valider</button>`);
+  renderCookList()}
+function renderCookList(){const el=document.getElementById('cooklist');
+  el.innerHTML=cookPresent.length?cookPresent.map(x=>`<div class="item" onclick="cookToggle('${x}')"><span class="check ${cookSel.has(x)?'on':''}">${cookSel.has(x)?'✓':''}</span><div class="grow">${ig(x).em} ${esc(ig(x).name)}</div><span class="muted">${cookSel.has(x)?'fini':'il en reste'}</span></div>`).join('')
+  :'<p class="muted">Aucun ingrédient de ton frigo n\'est utilisé ici. Valide simplement.</p>'}
+function cookToggle(x){cookSel.has(x)?cookSel.delete(x):cookSel.add(x);renderCookList()}
+function cookDone(rid){cookSel.forEach(removeOne);S.meals.push({d:today(),type:'maison',rid});
+  const p=S.plan.find(p=>p.rid===rid&&!p.done);if(p)p.done=true;
+  rebuildPlanList();save();closeSheet();sugg={list:[],idx:0};render();
+  toast('+1 repas maison 💪 ≈ '+money(Math.max(0,S.settings.uber-S.settings.home))+' économisés')}
+
+function temptation(){const fm=fridgeMap(),st=S.settings;
+  const best=eligible(20).map(r=>{const a=analyze(r,fm);return{r,a,s:a.cov*10-a.miss.length*3+a.urg+(r.t<=10?2:0)}}).sort((x,y)=>y.s-x.s)[0];
+  let h=`<div style="text-align:center"><div style="font-size:44px">🛵💸</div><h2>Attends 30 secondes</h2><p class="muted" style="margin-top:-4px">Une commande te coûte environ <b>${money(st.uber)}</b>. Un repas maison, environ <b>${money(st.home)}</b>.</p></div>`;
+  if(best){const r=best.r,a=best.a;
+    h+=`<div class="card"><div class="muted">${a.have.length?'Avec ce que tu as, tu peux faire :':'Idée rapide (il faudra passer au magasin) :'}</div><div class="item" style="padding:8px 0 0" onclick="showRecipe('${r.id}')"><div class="em-big">${r.e}</div><div class="grow"><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min · ${a.miss.length?'il manque '+a.miss.map(x=>esc(ig(x).name.toLowerCase())).join(', '):'tu as tout ✅'}</div></div></div></div>
+    <button class="btn big" onclick="cook('${r.id}')">OK, je cuisine 💪</button>`}
+  h+=`<button class="btn line big" style="margin-top:8px" onclick="logOrder()">Je commande quand même</button><p class="muted" style="font-size:13px;text-align:center">Pas de jugement : l'important, c'est de le noter pour voir où part ton argent.</p>`;
+  openSheet(h)}
+function logOrder(){openSheet(`<h2>🛵 Noter une commande</h2><label class="f">Montant total (frais et pourboire compris)</label><input type="number" id="amt" inputmode="decimal" value="${S.settings.uber}"><button class="btn big" style="margin-top:16px" onclick="saveOrder()">Enregistrer</button>`)}
+function saveOrder(){const v=parseFloat(document.getElementById('amt').value)||0;S.meals.push({d:today(),type:'commande',amount:v});save();closeSheet();render();toast('Noté 📝')}
+function logHome(){S.meals.push({d:today(),type:'maison'});save();render();toast('+1 repas maison 💪')}
+
+let askCb=null;
+function ask(msg,yes,cb){askCb=cb;openSheet(`<h2>${esc(msg)}</h2><div class="row" style="margin-top:16px"><button class="btn line" onclick="closeSheet()">Annuler</button><button class="btn" style="background:var(--red)" onclick="const f=askCb;askCb=null;f&&f()">${esc(yes)}</button></div>`)}
+/* --- Frigo --- */
+function addSheet(){openSheet(`<h2>Ajouter au frigo</h2><input type="search" id="q" placeholder="Rechercher : poulet, lait, tofu…" oninput="renderAddList()" autocomplete="off"><p class="muted" style="font-size:13px;margin:8px 2px 0">Touche un aliment pour l'ajouter (plusieurs fois si tu en as plusieurs).</p><div id="addlist"></div><div style="position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));background:var(--bg);padding:12px 0 4px;margin-top:12px"><button class="btn big" onclick="closeSheet()">Terminé</button></div>`);renderAddList()}
+function renderAddList(){const raw=document.getElementById('q').value,q=norm(raw);
+  const ids=allIngIds().filter(id=>!q||norm(ig(id).name).includes(q));const by={};ids.forEach(id=>{(by[ig(id).ray]=by[ig(id).ray]||[]).push(id)});
+  let h='';RAYS.forEach(r=>{if(!by[r])return;h+=`<div class="sec-title">${r}</div><div class="chips">${by[r].map(id=>{const n=S.fridge.filter(f=>f.ing===id).length;return `<button class="chip ${n?'on':''}" onclick="quickAdd('${id}')">${ig(id).em} ${esc(ig(id).name)}${n?' ×'+n:''}</button>`}).join('')}</div>`});
+  if(q&&!ids.some(id=>norm(ig(id).name)===q))h+=`<button class="btn ghost big" style="margin-top:18px" onclick="newIngSheet()">+ Créer « ${esc(raw.trim())} »</button>`;
+  document.getElementById('addlist').innerHTML=h}
+function quickAdd(id){addToFridge(id);save();render();renderAddList();const g=ig(id);toast(g.em+' '+g.name+' ajouté · '+dlLabel(g.days))}
+function newIngSheet(){const name=(document.getElementById('q')||{}).value||'';
+  openSheet(`<h2>Nouvel aliment</h2><label class="f">Nom</label><input type="text" id="nn" value="${esc(name.trim())}">
+  <label class="f">Se garde combien de jours (environ) ?</label><input type="number" id="nd" inputmode="numeric" value="7">
+  <label class="f">Rayon</label><select id="nr">${RAYS.map(r=>`<option ${r==='Autre'?'selected':''}>${r}</option>`).join('')}</select>
+  <button class="btn big" style="margin-top:16px" onclick="saveNewIng()">Ajouter au frigo</button>`)}
+function saveNewIng(){const n=document.getElementById('nn').value.trim();if(!n){toast('Donne-lui un nom');return}
+  const id='x'+uid();S.custom.ings[id]={name:n,ray:document.getElementById('nr').value,days:Math.max(1,parseInt(document.getElementById('nd').value)||7),em:'🍽️'};
+  addToFridge(id);save();closeSheet();render();toast(n+' ajouté')}
+function itemSheet(fid){const f=S.fridge.find(x=>x.id===fid);if(!f)return;const g=ig(f.ing),d=dl(f.exp);
+  openSheet(`<div style="text-align:center"><div style="font-size:48px">${g.em}</div><h2 style="margin:4px 0 8px">${esc(g.name)}</h2><span class="badge ${dlClass(d)}">${dlLabel(d)}</span></div>
+  <label class="f">Date limite</label><input type="date" value="${f.exp}" onchange="setExp('${fid}',this.value)">
+  <div class="row" style="margin-top:16px"><button class="btn" onclick="useItem('${fid}')">✅ Fini</button><button class="btn warn" onclick="trashItem('${fid}')">🗑️ Jeté</button></div>
+  <button class="btn ghost big" style="margin-top:8px" onclick="ideasWith('${f.ing}')">💡 Idées avec ça</button>
+  <button class="btn line big" style="margin-top:8px" onclick="toList('${f.ing}');save();toast('Ajouté à la liste de courses 🛒')">+ En racheter</button>`)}
+function setExp(fid,v){const f=S.fridge.find(x=>x.id===fid);if(f&&v){f.exp=v;save();render();itemSheet(fid)}}
+function useItem(fid){S.fridge=S.fridge.filter(x=>x.id!==fid);save();closeSheet();render();toast('Bien joué ✅')}
+function trashItem(fid){const f=S.fridge.find(x=>x.id===fid);S.fridge=S.fridge.filter(x=>x.id!==fid);if(f)S.waste.push({d:today(),ing:f.ing});save();closeSheet();render();toast("Noté. Le but : faire baisser ce chiffre le mois prochain")}
+function ideasWith(ing){const fm=fridgeMap();const L=recipes().filter(r=>(!S.settings.veg||r.v)&&r.i.concat(r.o||[]).includes(ing)).map(r=>({r,a:analyze(r,fm)})).sort((x,y)=>score(y.r,y.a)-score(x.r,x.a));
+  openSheet(`<h2>💡 Avec ${esc(ig(ing).name.toLowerCase())}</h2>`+(L.length?`<div class="card" style="padding:2px 14px">${L.map(({r,a})=>`<div class="item" onclick="showRecipe('${r.id}')"><div class="em">${r.e}</div><div class="grow"><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min · ${a.miss.length?'il manque '+a.miss.length:'tu as tout ✅'}</div></div></div>`).join('')}</div>`:'<p class="muted">Pas de recette avec cet ingrédient pour l\'instant. Tu peux en ajouter une dans 📖 Recettes.</p>'))}
+
+/* --- Recette --- */
+function ingLine(x,fm){const g=ig(x),h=x in fm;
+  return `<div class="item" style="padding:8px 2px"><div class="em" style="font-size:20px">${g.em}</div><div class="grow">${esc(g.name)}</div>${h?`<span class="badge ${fm[x]<=5?dlClass(fm[x]):'b-green'}">${fm[x]<=5?dlLabel(fm[x]):'✓ au frigo'}</span>`:'<span class="badge b-grey">à acheter</span>'}</div>`}
+function showRecipe(rid){const r=getR(rid);if(!r)return;const fm=fridgeMap(),a=analyze(r,fm),fav=S.favs.includes(rid);
+  openSheet(`<div style="display:flex;gap:14px;align-items:center"><div class="em-big">${r.e}</div><div class="grow"><h2 style="margin:0">${esc(r.n)}</h2><div class="muted">⏱ ${r.t} min${r.v?' · 🌱 végé':''}</div></div><button class="icon-btn" onclick="toggleFav('${rid}')" aria-label="Favori">${fav?'❤️':'🤍'}</button></div>
+  <div class="sec-title">Ingrédients</div><div class="card" style="padding:2px 14px;margin-top:0">${r.i.map(x=>ingLine(x,fm)).join('')}</div>
+  ${r.o&&r.o.length?`<div class="sec-title">En option</div><div class="card" style="padding:2px 14px;margin-top:0">${r.o.map(x=>ingLine(x,fm)).join('')}</div>`:''}
+  <p class="muted" style="font-size:13px;margin:4px 2px">+ sel, poivre, huile (je pars du principe que tu en as).</p>
+  <div class="sec-title">Étapes</div><ol class="steps">${r.s.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+  <div class="row" style="margin-top:16px"><button class="btn" onclick="cook('${rid}')">Je cuisine ça</button>${a.miss.length?`<button class="btn ghost" onclick="addMissing('${rid}')">+ ${a.miss.length} à la liste</button>`:''}</div>
+  ${r.custom?`<button class="btn line big" style="margin-top:8px;color:var(--red)" onclick="delRecipe('${rid}')">Supprimer cette recette</button>`:''}`)}
+function toggleFav(rid){S.favs=S.favs.includes(rid)?S.favs.filter(x=>x!==rid):S.favs.concat(rid);save();render();showRecipe(rid)}
+function delRecipe(rid){ask('Supprimer cette recette ?','Supprimer',()=>doDelRecipe(rid))}
+function doDelRecipe(rid){S.custom.recipes=S.custom.recipes.filter(r=>r.id!==rid);S.plan=S.plan.filter(p=>p.rid!==rid);save();closeSheet();render()}
+
+let nrSel=new Set();
+function newRecipeSheet(){nrSel=new Set();
+  openSheet(`<h2>✍️ Ma recette</h2><label class="f">Nom</label><input type="text" id="rn" placeholder="Ex. Pâtes de maman">
+  <div class="row"><div class="grow"><label class="f">Temps (min)</label><input type="number" id="rt" inputmode="numeric" value="20"></div><label class="grow" style="display:flex;align-items:center;gap:10px;margin-top:34px"><input type="checkbox" id="rv" style="width:22px;height:22px"> 🌱 Végé</label></div>
+  <label class="f">Ingrédients principaux</label><input type="search" id="rq" placeholder="Filtrer…" oninput="renderNr()"><div id="nrsel" style="margin:10px 0"></div><div id="nrchips" style="max-height:220px;overflow:auto"></div>
+  <label class="f">Étapes (une par ligne)</label><textarea id="rs" placeholder="Faire cuire les pâtes…"></textarea>
+  <button class="btn big" style="margin-top:16px" onclick="saveRecipe()">Enregistrer</button>`);renderNr()}
+function renderNr(){const q=norm(document.getElementById('rq').value);
+  document.getElementById('nrsel').innerHTML=nrSel.size?`<div class="chips">${[...nrSel].map(id=>`<button class="chip on" onclick="nrToggle('${id}')">${ig(id).em} ${esc(ig(id).name)} ✕</button>`).join('')}</div>`:'<span class="muted">Aucun sélectionné</span>';
+  document.getElementById('nrchips').innerHTML=`<div class="chips">${allIngIds().filter(id=>!nrSel.has(id)&&(!q||norm(ig(id).name).includes(q))).map(id=>`<button class="chip" onclick="nrToggle('${id}')">${ig(id).em} ${esc(ig(id).name)}</button>`).join('')}</div>`}
+function nrToggle(id){nrSel.has(id)?nrSel.delete(id):nrSel.add(id);renderNr()}
+function saveRecipe(){const n=document.getElementById('rn').value.trim();if(!n){toast('Donne un nom à ta recette');return}if(!nrSel.size){toast('Choisis au moins un ingrédient');return}
+  S.custom.recipes.push({id:'c'+uid(),n,e:'🍽️',t:Math.max(1,parseInt(document.getElementById('rt').value)||20),v:document.getElementById('rv').checked,i:[...nrSel],o:[],s:document.getElementById('rs').value.split('\n').map(s=>s.trim()).filter(Boolean),custom:true});
+  save();closeSheet();rFilter='mine';render();toast('Recette enregistrée ✍️')}
+
+/* --- Courses & plan --- */
+function setN(d){S.settings.nPlan=Math.min(7,Math.max(1,S.settings.nPlan+d));save();render()}
+const BASES=['pates','riz','nouilles','tortillas','pommes_terre','pain','pain_mie'];
+function planScore(r,fm,need,chosen){const a=analyze(r,fm);let s=score(r,a);
+  a.miss.forEach(x=>{if(need.has(x))s+=1.5+(ig(x).days<=7?1.5:0)});
+  chosen.forEach(c=>{if(c.i.some(x=>BASES.includes(x)&&r.i.includes(x)))s-=2.5});
+  return s+Math.random()*2}
+function pickBest(cands,fm,need,chosen){let best=null,bs=-1e9;cands.forEach(r=>{if(chosen.includes(r))return;const s=planScore(r,fm,need,chosen);if(s>bs){bs=s;best=r}});return best}
+function genPlan(){const fm=fridgeMap(),cands=eligible(S.settings.energy);if(!cands.length){toast('Aucune recette avec ces filtres');return}
+  const chosen=[],need=new Set();
+  for(let k=0;k<S.settings.nPlan&&k<cands.length;k++){const b=pickBest(cands,fm,need,chosen);chosen.push(b);b.i.filter(x=>!(x in fm)).forEach(x=>need.add(x))}
+  const prio=r=>Math.min(...r.i.map(x=>x in fm?fm[x]:ig(x).days));
+  chosen.sort((a,b)=>prio(a)-prio(b));
+  S.plan=chosen.map(r=>({rid:r.id,done:false}));S.planStart=today();
+  rebuildPlanList();save();render();
+  const nb=S.list.filter(l=>l.src==='plan'&&!l.c).length;
+  toast(chosen.length+' repas planifiés · '+nb+' article'+(nb>1?'s':'')+' à acheter')}
+function rebuildPlanList(){S.list=S.list.filter(x=>x.src!=='plan'||x.c);const fm=fridgeMap();
+  S.plan.filter(p=>!p.done).forEach(p=>{const r=getR(p.rid);if(!r)return;r.i.forEach(x=>{if(x in fm)return;if(S.list.some(l=>l.ing===x))return;S.list.push({ing:x,c:false,src:'plan'})})})}
+function swapPlan(i){const fm=fridgeMap(),others=S.plan.filter((_,j)=>j!==i).map(p=>getR(p.rid)).filter(Boolean);
+  const need=new Set();others.forEach(r=>r.i.filter(x=>!(x in fm)).forEach(x=>need.add(x)));
+  const ids=S.plan.map(p=>p.rid);const cands=eligible(S.settings.energy).filter(r=>!ids.includes(r.id));
+  if(!cands.length){toast('Pas d\'autre recette dispo avec ces filtres');return}
+  const b=pickBest(cands,fm,need,others);S.plan[i]={rid:b.id,done:false};rebuildPlanList();save();render();toast('Remplacé par : '+b.n)}
+function removePlan(i){S.plan.splice(i,1);rebuildPlanList();save();render()}
+function addListItem(){const el=document.getElementById('li'),v=el.value.trim();if(!v)return;const m=findIng(v);
+  if(m)toList(m);else S.list.push({name:v,c:false,src:'manual'});save();render();setTimeout(()=>{const e=document.getElementById('li');if(e)e.focus()},0)}
+function toggleItem(i){S.list[i].c=!S.list[i].c;save();render()}
+function delItem(i){S.list.splice(i,1);save();render()}
+function shoppingDone(){const got=S.list.filter(l=>l.c);
+  got.forEach(l=>{if(l.ing)addToFridge(l.ing);else{const m=findIng(l.name);if(m)addToFridge(m);else{const id='x'+uid();S.custom.ings[id]={name:l.name,ray:'Autre',days:7,em:'🛍️'};addToFridge(id)}}});
+  S.list=S.list.filter(l=>!l.c);save();render();toast(got.length+' article'+(got.length>1?'s':'')+' rangé'+(got.length>1?'s':'')+' au frigo 🧊')}
+
+function exportICS(){const todo=S.plan.filter(p=>!p.done&&getR(p.rid));if(!todo.length){toast('Rien à rappeler');return}
+  const [hh,mm]=S.settings.hour.split(':').map(Number);const now=new Date();
+  let start=(now.getHours()*60+now.getMinutes()>=hh*60+mm)?1:0;
+  const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  const e=s=>String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Frigo Malin//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  todo.forEach((p,k)=>{const r=getR(p.rid);const d=parse(today());d.setDate(d.getDate()+start+k);d.setHours(hh,mm,0,0);const end=new Date(d.getTime()+30*60000);
+    L.push('BEGIN:VEVENT','UID:'+uid()+'@frigomalin','DTSTAMP:'+stamp,'DTSTART:'+f(d),'DTEND:'+f(end),'SUMMARY:'+e('🍳 Ce soir : '+r.n+' ('+r.t+' min)'),
+      'DESCRIPTION:'+e('Ingrédients : '+r.i.map(x=>ig(x).name).join(', ')+'\n\n'+r.s.map((s,j)=>(j+1)+'. '+s).join('\n')),
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+e('Ce soir : '+r.n),'TRIGGER:PT0M','END:VALARM','END:VEVENT')});
+  L.push('END:VCALENDAR');
+  download(new Blob([L.join('\r\n')],{type:'text/calendar;charset=utf-8'}),'frigo-malin-semaine.ics');
+  toast('Ouvre le fichier pour ajouter les rappels 📅')}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1500)}
+
+
+/* ============ PHOTO : ticket ou courses (Gemini) ============ */
+const GEMINI_MODELS=['gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite'];
+function geminiSetup(){openSheet(`<h2>📸 Activer la photo</h2>
+  <p class="muted" style="margin-top:-4px">La reconnaissance utilise Gemini, l'IA de Google. Il te faut une clé gratuite (2 minutes) :</p>
+  <ol class="steps howto"><li>Ouvre <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> et connecte-toi avec ton compte Google.</li><li>Appuie sur « Create API key ».</li><li>Copie la clé et colle-la ici.</li></ol>
+  <input type="text" id="gk" placeholder="Colle ta clé ici" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(S.settings.gkey)}">
+  <button class="btn big" style="margin-top:12px" onclick="saveKey()">Enregistrer et tester</button><p id="gkmsg" class="muted" style="text-align:center;min-height:20px"></p>
+  <div class="card"><b>Bon à savoir</b><p class="muted" style="margin:6px 0 0;font-size:13px">La clé reste uniquement sur ce téléphone. Ne la partage pas : quelqu'un qui l'a peut l'utiliser à ta place. En version gratuite, Google peut utiliser les photos envoyées pour améliorer ses produits : ne photographie rien de personnel.</p></div>`)}
+async function saveKey(){const k=document.getElementById('gk').value.trim(),m=document.getElementById('gkmsg');if(!k){m.textContent="Colle d'abord ta clé";return}
+  m.textContent='Test en cours…';
+  try{await gemini([{text:'Réponds juste OK.'}],null,k);S.settings.gkey=k;save();m.textContent='✅ Ça marche !';setTimeout(()=>{closeSheet();render()},900)}
+  catch(e){m.textContent='❌ '+e.message}}
+async function gemini(parts,schema,key){key=key||S.settings.gkey;let last=null;
+  const models=[...new Set([S.settings.gmodel].concat(GEMINI_MODELS).filter(Boolean))];
+  for(const model of models){let r;
+    try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({contents:[{parts}],generationConfig:Object.assign({temperature:0.1},schema?{responseMimeType:'application/json',responseSchema:schema}:{})})})}
+    catch(e){throw new Error("Pas de connexion internet (ou accès bloqué par cette page).")}
+    if(r.ok){const d=await r.json();const t=((((d.candidates||[])[0]||{}).content||{}).parts||[]).map(p=>p.text||'').join('');
+      if(!t)throw new Error('Réponse vide de Gemini, réessaie.');if(S.settings.gmodel!==model){S.settings.gmodel=model;save()}return t}
+    let msg='';try{msg=(await r.json()).error.message||''}catch(e){}
+    if(r.status===400&&/api.?key/i.test(msg))throw new Error("Clé invalide. Vérifie que tu l'as copiée en entier.");
+    if(r.status===403)throw new Error('Clé refusée par Google. '+msg);
+    last=new Error(r.status===429?'Quota gratuit atteint pour le moment, réessaie plus tard.':'Erreur Gemini '+r.status+(msg?' : '+msg:''));
+    if(r.status===404||r.status===429||(r.status===400&&/model/i.test(msg)))continue;
+    throw last}
+  throw last||new Error('Aucun modèle Gemini disponible.')}
+const PHOTO_SCHEMA={type:'OBJECT',properties:{kind:{type:'STRING',enum:['ticket','aliments','autre']},items:{type:'ARRAY',items:{type:'OBJECT',properties:{catalog_id:{type:'STRING',nullable:true},name_fr:{type:'STRING'},quantity:{type:'INTEGER'},days:{type:'INTEGER'}},required:['name_fr','days']}}},required:['kind','items']};
+function photoPrompt(){return `Tu analyses une photo prise par une étudiante. C'est soit un ticket de caisse d'épicerie (souvent en anglais, avec des abréviations, magasin au Canada), soit des aliments posés sur une table ou dans un frigo.
+Liste les ALIMENTS à ranger au frigo ou au placard. Ignore : produits non alimentaires (essuie-tout, savon…), sacs, taxes, totaux, rabais, consigne, et les basiques sel, poivre, huile, sucre, farine, épices (sauf le curry).
+Pour chaque aliment, mets dans catalog_id l'identifiant du catalogue ci-dessous s'il correspond (par exemple "CHKN BRST" -> poulet, "BANANA" -> null). Sinon catalog_id = null.
+name_fr = nom court et clair en français. quantity = nombre d'unités achetées (1 par défaut). Ne répète pas un même aliment : additionne les quantités.
+days = nombre de jours de conservation typique après achat (frigo pour le frais, placard pour l'épicerie), en entier.
+kind = "ticket", "aliments" ou "autre" selon la photo.
+Catalogue (id: nom) :
+${allIngIds().map(id=>id+': '+ig(id).name).join('\n')}`}
+function photoAdd(){if(!S.settings.gkey){geminiSetup();return}const i=document.getElementById('photoIn');i.value='';i.click()}
+function shrink(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{const sh=Math.min(im.width,im.height),lg=Math.max(im.width,im.height),s=Math.min(1,1200/sh,3000/lg);
+    const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.85).split(',')[1])};
+  im.onerror=()=>rej(new Error("Je n'arrive pas à lire cette image."));im.src=url})}
+let photoItems=[],photoKind='';
+async function onPhoto(input){const f=input.files&&input.files[0];if(!f)return;
+  openSheet(`<div class="empty"><div class="spin"></div><b>J'analyse ta photo…</b>Ça prend quelques secondes.</div>`);
+  try{const b64=await shrink(f);const txt=await gemini([{text:photoPrompt()},{inline_data:{mime_type:'image/jpeg',data:b64}}],PHOTO_SCHEMA);
+    let data;try{data=JSON.parse(txt)}catch(e){throw new Error("Je n'ai pas réussi à lire la réponse. Réessaie.")}
+    photoItems=(data.items||[]).map(x=>{let id=(x.catalog_id&&(ING[x.catalog_id]||S.custom.ings[x.catalog_id]))?x.catalog_id:findIng(x.name_fr);
+      return{id,name:String(x.name_fr||'Aliment'),days:id?ig(id).days:Math.min(400,Math.max(1,parseInt(x.days)||7)),qty:Math.min(6,Math.max(1,parseInt(x.quantity)||1)),on:true}});
+    photoKind=data.kind;
+    if(!photoItems.length){openSheet(`<div class="empty"><div class="em">🤔</div><b>Je n'ai trouvé aucun aliment</b>Essaie avec plus de lumière, le ticket bien à plat et en entier.</div><button class="btn big" onclick="photoAdd()">Reprendre une photo</button>`);return}
+    openSheet(`<h2>${photoKind==='ticket'?'🧾 Ton ticket':'📸 Ta photo'}</h2><p class="muted" style="margin-top:-4px">Décoche ce qui ne va pas au frigo. Les dates sont estimées : tu pourras les corriger dans 🧊 Frigo.</p><div id="preview"></div>`);
+    renderPhotoReview()}
+  catch(e){openSheet(`<div class="empty"><div class="em">⚠️</div><b>Ça n'a pas marché</b>${esc(e.message)}</div><button class="btn big" onclick="photoAdd()">Réessayer</button><button class="btn line big" style="margin-top:8px" onclick="geminiSetup()">Vérifier ma clé</button>`)}}
+function renderPhotoReview(){const n=photoItems.filter(x=>x.on).length;
+  document.getElementById('preview').innerHTML=`<div class="card" style="padding:2px 14px">${photoItems.map((x,i)=>{const g=x.id?ig(x.id):{name:x.name,em:'🛍️'};
+    return `<div class="item" onclick="photoItems[${i}].on=!photoItems[${i}].on;renderPhotoReview()"><span class="check ${x.on?'on':''}">${x.on?'✓':''}</span><div class="em">${g.em}</div><div class="grow"><div class="name">${esc(g.name)}${x.qty>1?' ×'+x.qty:''}</div>${x.id?'':'<div class="muted">nouveau produit</div>'}</div><span class="badge ${dlClass(x.days)}">${dlLabel(x.days)}</span></div>`}).join('')}</div>
+  <button class="btn big" ${n?'':'disabled'} onclick="photoConfirm()">Ranger ${n} aliment${n>1?'s':''} au frigo</button>`}
+function customIng(name,days){const ex=findIng(name);if(ex)return ex;const id='x'+uid();S.custom.ings[id]={name,ray:'Autre',days:days||7,em:'🛍️'};return id}
+function markBought(ids){S.list=S.list.filter(l=>!(l.ing&&ids.includes(l.ing)))}
+function photoConfirm(){const ids=[];let n=0;
+  photoItems.filter(x=>x.on).forEach(x=>{const id=x.id||customIng(x.name,x.days);ids.push(id);for(let q=0;q<x.qty;q++){addToFridge(id,addDays(today(),x.days));n++}});
+  markBought(ids);save();closeSheet();go('fridge');toast(n+' aliment'+(n>1?'s':'')+' rangé'+(n>1?'s':'')+' au frigo 🧊')}
+
+/* ============ CODE-BARRES (Open Food Facts) ============ */
+const ZX_URL='https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-browser.min.js';
+function loadZX(){if(window.ZXingBrowser)return Promise.resolve();return new Promise((res,rej)=>{const s=document.createElement('script');s.src=ZX_URL;s.onload=res;s.onerror=()=>rej(new Error('Impossible de charger le scanner (pas de connexion ?).'));document.head.appendChild(s)})}
+let scanCtl=null,scanOn=false;
+function stopScan(){scanOn=false;try{if(scanCtl)scanCtl.stop()}catch(e){}scanCtl=null}
+async function scanBarcode(){stopScan();
+  openSheet(`<h2>▦ Scanner un code-barres</h2><div style="position:relative;border-radius:18px;overflow:hidden;background:#111;aspect-ratio:4/3"><video id="scanv" playsinline muted autoplay style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;left:12%;right:12%;top:50%;height:2px;background:#E2603A;box-shadow:0 0 10px #E2603A"></div></div>
+  <p class="muted" id="scanmsg" style="text-align:center">Ouverture de la caméra…</p><button class="btn line big" onclick="closeSheet()">Annuler</button>`);
+  const msg=t=>{const e=document.getElementById('scanmsg');if(e)e.textContent=t};scanOn=true;
+  try{await loadZX();if(!scanOn)return;const reader=new ZXingBrowser.BrowserMultiFormatReader();
+    const ctl=await reader.decodeFromConstraints({video:{facingMode:'environment'}},'scanv',(res,err,c)=>{if(res&&scanOn){scanOn=false;try{c.stop()}catch(e){}scanCtl=null;if(navigator.vibrate)navigator.vibrate(60);onBarcode(res.getText())}});
+    if(!scanOn){try{ctl.stop()}catch(e){}return}scanCtl=ctl;msg('Vise le code-barres, bien éclairé.')}
+  catch(e){msg(e&&e.name==='NotAllowedError'?"Caméra bloquée. Ouvre l'app dans Safari, depuis son adresse en ligne (GitHub), puis accepte quand Safari demande l'accès à la caméra. Si tu as refusé : Réglages iPhone → Apps → Safari → Caméra → Demander.":(e&&e.message)||'Caméra indisponible.')}}
+const PMAP=[[/lait de coco|coconut milk|coconut cream/,'lait_coco'],[/gochujang/,'gochujang'],[/kimchi/,'kimchi'],[/curry/,'curry'],[/pesto/,'pesto'],[/sauce soja|soy sauce|soya sauce|tamari/,'sauce_soja'],[/\boeufs?\b|\beggs?\b/,'oeufs'],[/yaourt|yogourt|yogurt|yoghurt/,'yaourt'],[/beurre|butter/,'beurre'],[/creme|cream/,'creme'],[/parmesan|parmigiano|grana padano/,'parmesan'],[/feta/,'feta'],[/mozzarella/,'mozzarella'],[/rape|grated|shredded|emmental|cheddar|gruyere/,'fromage_rape'],[/lardon|bacon/,'lardons'],[/jambon|\bham\b/,'jambon'],[/tofu/,'tofu'],[/poulet|chicken/,'poulet'],[/boeuf hache|ground beef|steak hache|minced beef/,'boeuf_hache'],[/saumon|salmon/,'saumon'],[/\bthon\b|tuna/,'thon'],[/saucisse|sausage/,'saucisses'],[/tortilla|\bwraps?\b/,'tortillas'],[/pain de mie|sandwich bread|sliced bread/,'pain_mie'],[/nouille|noodle|ramen|udon|ramyun|ramyeon/,'nouilles'],[/\bpates?\b|pasta|spaghetti|penne|fusilli|macaroni|linguine|tagliatelle|rigatoni/,'pates'],[/\briz\b|\brices?\b/,'riz'],[/lentille|lentil/,'lentilles'],[/pois chiche|chickpea|garbanzo/,'pois_chiches'],[/haricots? rouges?|kidney bean|red bean/,'haricots_rouges'],[/\bmais\b|sweet corn|\bcorn\b/,'mais'],[/petits? pois|green peas|\bpeas\b/,'petits_pois'],[/tomate|tomato|passata|marinara/,'tomates_conc'],[/\bmiel\b|honey/,'miel'],[/epinard|spinach/,'epinards'],[/champignon|mushroom/,'champignons'],[/salade|lettuce/,'salade'],[/\blait\b|\bmilks?\b/,'lait'],[/\bpain\b|bread|baguette/,'pain']];
+function mapProduct(name,cats){const a=norm(name).replace(/[-_]/g,' ');for(const [re,id] of PMAP)if(re.test(a))return id;
+  const c=norm((cats||[]).join(' ')).replace(/[a-z]{2}:/g,' ').replace(/-/g,' ');for(const [re,id] of PMAP)if(re.test(c))return id;return null}
+let bc={};
+async function onBarcode(code){openSheet(`<div class="empty"><div class="spin"></div><b>Je cherche le produit…</b>Code ${esc(code)}</div>`);
+  let p=null,err='';
+  try{const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_fr,product_name_en,generic_name_fr,brands,categories_tags');
+    const d=await r.json();if(d&&d.status===1&&d.product)p=d.product}
+  catch(e){err="Je n'arrive pas à joindre la base de produits (connexion ?)."}
+  const name=p?(p.product_name_fr||p.product_name||p.product_name_en||p.generic_name_fr||''):'';
+  bc={code,name,brand:p&&p.brands?String(p.brands).split(',')[0]:'',sel:p?mapProduct(name+' '+(p.generic_name_fr||''),p.categories_tags):null,found:!!p,err};
+  const g=bc.sel?ig(bc.sel):null;
+  openSheet(`<h2>${bc.found?'✅ Produit trouvé':'🤷 Produit inconnu'}</h2>
+  ${bc.found?`<div class="card" style="margin-top:0"><div class="name">${esc(bc.name||'Produit sans nom')}</div>${bc.brand?`<div class="muted">${esc(bc.brand)}</div>`:''}</div>`:`<p class="muted" style="margin-top:-4px">${esc(bc.err||"Ce code-barres n'est pas dans la base Open Food Facts.")} Choisis l'aliment à la main :</p>`}
+  <label class="f">Je le range comme</label><div id="bcsel"></div>
+  <input type="search" id="bq" placeholder="Changer : chercher un aliment…" oninput="renderBcPick()" style="margin-top:10px" autocomplete="off"><div id="bcpick" style="max-height:200px;overflow:auto;margin-top:8px"></div>
+  <label class="f">Date limite</label><input type="date" id="bcdate" value="${addDays(today(),g?g.days:7)}">
+  <button class="btn big" style="margin-top:16px" onclick="barcodeConfirm(false)">Ajouter au frigo</button>
+  <button class="btn ghost big" style="margin-top:8px" onclick="barcodeConfirm(true)">Ajouter et scanner le suivant</button>`);
+  renderBcPick()}
+function renderBcPick(){const g=bc.sel?ig(bc.sel):null;
+  document.getElementById('bcsel').innerHTML=g?`<div class="chips"><span class="chip on">${g.em} ${esc(g.name)}</span></div>`:(bc.name?`<div class="chips"><span class="chip on">🛍️ ${esc(bc.name)} (nouveau produit)</span></div>`:'<span class="muted">Choisis un aliment ci-dessous</span>');
+  const q=norm(document.getElementById('bq').value);const ids=q?allIngIds().filter(id=>norm(ig(id).name).includes(q)):(g||bc.name?[]:allIngIds());
+  document.getElementById('bcpick').innerHTML=`<div class="chips">${ids.map(id=>`<button class="chip" onclick="bcPick('${id}')">${ig(id).em} ${esc(ig(id).name)}</button>`).join('')}</div>`}
+function bcPick(id){bc.sel=id;document.getElementById('bq').value='';document.getElementById('bcdate').value=addDays(today(),ig(id).days);renderBcPick()}
+function barcodeConfirm(next){let id=bc.sel;
+  if(!id){if(!bc.name){toast('Choisis un aliment');return}id=customIng(bc.name,7)}
+  addToFridge(id,document.getElementById('bcdate').value||addDays(today(),ig(id).days));markBought([id]);save();render();
+  toast(ig(id).em+' '+ig(id).name+' ajouté');next?scanBarcode():closeSheet()}
+
+/* --- Réglages --- */
+function openSettings(){const st=S.settings;
+  openSheet(`<h2>⚙️ Réglages</h2>
+  <label class="f">Prix moyen d'une commande Uber Eats (frais + pourboire)</label><input type="number" inputmode="decimal" value="${st.uber}" onchange="setSet('uber',parseFloat(this.value)||0)">
+  <label class="f">Coût moyen d'un repas fait maison</label><input type="number" inputmode="decimal" value="${st.home}" onchange="setSet('home',parseFloat(this.value)||0)">
+  <label class="f">Heure du rappel « ce soir on cuisine »</label><input type="time" value="${st.hour}" onchange="setSet('hour',this.value||'18:00')">
+  <label class="item" style="cursor:pointer;margin-top:8px"><div class="grow"><div class="name">🌱 Je mange végétarien</div><div class="muted">Masque les recettes avec viande ou poisson</div></div><input type="checkbox" ${st.veg?'checked':''} onchange="setSet('veg',this.checked)" style="width:24px;height:24px"></label>
+  <div class="sec-title">📸 Reconnaissance photo (Gemini)</div>
+  ${st.gkey?`<div class="item"><div class="grow"><div class="name">Clé enregistrée</div><div class="muted">••••${esc(st.gkey.slice(-4))}${st.gmodel?' · '+esc(st.gmodel):''}</div></div><button class="chip" onclick="geminiSetup()">Modifier</button><button class="chip" onclick="setSet('gkey','');openSettings()">Retirer</button></div>`:`<button class="btn ghost big" onclick="geminiSetup()">Activer la reconnaissance photo</button>`}
+  <div class="sec-title">Sauvegarde</div><p class="muted" style="font-size:13px;margin:0 2px 10px">Tes données restent uniquement sur ce téléphone, dans ce navigateur. Exporte une sauvegarde de temps en temps.</p>
+  <div class="row"><button class="btn ghost" onclick="exportData()">⬇️ Exporter</button><label class="btn ghost">⬆️ Importer<input type="file" accept="application/json,.json" style="display:none" onchange="importData(this.files[0])"></label></div>
+  <button class="btn line big" style="margin-top:10px" onclick="welcome()">❓ Comment ça marche</button>
+  <button class="btn line big" style="margin-top:8px;color:var(--red)" onclick="resetAll()">Tout effacer</button>
+  <p class="muted" style="font-size:12px;text-align:center;margin-top:16px">Frigo Malin · v1</p>`)}
+function setSet(k,v){S.settings[k]=v;save();sugg={list:[],idx:0};render()}
+function exportData(){download(new Blob([JSON.stringify(Object.assign({},S,{settings:Object.assign({},S.settings,{gkey:''})}),null,1)],{type:'application/json'}),'frigo-malin-sauvegarde-'+today()+'.json');toast('Sauvegarde téléchargée')}
+function importData(file){if(!file)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!x||!Array.isArray(x.fridge))throw 0;if(x.settings&&!x.settings.gkey)x.settings.gkey=S.settings.gkey;localStorage.setItem(KEY,JSON.stringify(x));S=load();closeSheet();render();toast('Sauvegarde restaurée ✅')}catch(e){toast("Ce fichier n'est pas une sauvegarde Frigo Malin")}};rd.readAsText(file)}
+function resetAll(){ask('Tout effacer (frigo, plan, liste, historique) ? Impossible à annuler.','Tout effacer',doReset)}
+function doReset(){S=clone(DEF);S.seen=true;save();sugg={list:[],idx:0};closeSheet();render()}
+
+function welcome(){S.seen=true;save();
+  openSheet(`<div style="text-align:center"><div style="font-size:48px">🥗</div><h2>Bienvenue dans Frigo Malin</h2></div>
+  <ol class="steps howto">
+  <li><b>🧊 Frigo</b> : ajoute ce que tu as, en photo (ticket de caisse ou courses), en scannant les codes-barres, ou à la main. L'app estime les dates limites et te montre ce qui doit partir en premier.</li>
+  <li><b>🛒 Courses</b> : génère ton plan de la semaine. L'app choisit des recettes qui partagent les mêmes ingrédients et fait la liste de ce qui manque. Coche en magasin → tout arrive dans ton frigo.</li>
+  <li><b>🍳 Ce soir</b> : choisis ton niveau de flemme, l'app te propose quoi cuisiner avec ce que tu as, en priorité ce qui va périmer.</li>
+  <li><b>🛵 Envie de commander ?</b> : appuie sur le bouton avant d'ouvrir Uber Eats.</li></ol>
+  <div class="card"><b>📱 L'installer sur ton iPhone</b><p class="muted" style="margin:6px 0 0">Ouvre la page dans Safari → bouton Partager (carré avec flèche) → « Sur l'écran d'accueil ». Elle s'ouvrira comme une vraie app.</p></div>
+  <button class="btn big" onclick="closeSheet();go('fridge')">C'est parti : je remplis mon frigo</button>`)}
+
+render();
+if(!S.seen)welcome();
+</script>
+</body>
+</html>
