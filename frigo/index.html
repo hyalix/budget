@@ -505,7 +505,7 @@ function geminiSetup(){openSheet(`<h2>📸 Activer la photo</h2>
 async function saveKey(){const k=document.getElementById('gk').value.trim(),m=document.getElementById('gkmsg');if(!k){m.textContent="Colle d'abord ta clé";return}
   m.textContent='Test en cours…';
   try{await gemini([{text:'Réponds juste OK.'}],null,k);S.settings.gkey=k;save();m.textContent='✅ Ça marche !';setTimeout(()=>{closeSheet();render()},900)}
-  catch(e){m.textContent='❌ '+e.message}}
+  catch(e){m.innerHTML='❌ '+esc(e.message)+(e.url?`<br><a href="${esc(e.url)}" target="_blank" rel="noopener">Activer l'API Gemini</a>`:'')}}
 async function gemini(parts,schema,key){key=key||S.settings.gkey;let last=null;
   const models=[...new Set([S.settings.gmodel].concat(GEMINI_MODELS).filter(Boolean))];
   for(const model of models){let r;
@@ -516,6 +516,7 @@ async function gemini(parts,schema,key){key=key||S.settings.gkey;let last=null;
       if(!t)throw new Error('Réponse vide de Gemini, réessaie.');if(S.settings.gmodel!==model){S.settings.gmodel=model;save()}return t}
     let msg='';try{msg=(await r.json()).error.message||''}catch(e){}
     if(r.status===400&&/api.?key/i.test(msg))throw new Error("Clé invalide. Vérifie que tu l'as copiée en entier.");
+    if(r.status===403&&/has not been used|is disabled|SERVICE_DISABLED/i.test(msg)){const m=msg.match(/https:\/\/console\.developers\.google\.com\/[^\s]+/);const e=new Error("La clé est bonne, mais l'API Gemini n'est pas activée dans son projet Google. Ouvre le lien ci-dessous, appuie sur « Activer » (Enable), attends 2-3 minutes, puis réessaie.");e.url=m?m[0]:'';throw e}
     if(r.status===403)throw new Error('Clé refusée par Google. '+msg);
     last=new Error(r.status===429?'Quota gratuit atteint pour le moment, réessaie plus tard.':'Erreur Gemini '+r.status+(msg?' : '+msg:''));
     if(r.status===404||r.status===429||(r.status===400&&/model/i.test(msg)))continue;
