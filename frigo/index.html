@@ -180,7 +180,7 @@ const R=[
 
 /* ============ ÉTAT & STOCKAGE ============ */
 const KEY='frigoMalin.v1';
-const DEF={fridge:[],plan:[],planStart:null,list:[],meals:[],waste:[],favs:[],custom:{ings:{},recipes:[]},seen:false,
+const DEF={fridge:[],plan:[],planStart:null,list:[],meals:[],waste:[],favs:[],custom:{ings:{},recipes:[]},barcodes:{},seen:false,
   settings:{uber:30,home:5,hour:'18:00',veg:false,energy:20,nPlan:4,gkey:'',gmodel:''}};
 const clone=o=>JSON.parse(JSON.stringify(o));
 function load(){
@@ -212,7 +212,8 @@ const allIngIds=()=>Object.keys(ING).concat(Object.keys(S.custom.ings));
 function findIng(name){const q=norm(name);if(!q)return null;const ids=allIngIds();
   return ids.find(id=>norm(ig(id).name)===q)||ids.find(id=>norm(ig(id).name).split(/[ (]/)[0]===q)||(q.length>=4?ids.find(id=>norm(ig(id).name).startsWith(q)):null)||null}
 const recipes=()=>R.concat(S.custom.recipes);
-const getR=id=>recipes().find(r=>r.id===id);
+const getR=id=>recipes().find(r=>r.id===id)||aiList.find(r=>r.id===id);
+let aiList=[],aiSeen=[];
 
 /* ============ LOGIQUE ============ */
 function fridgeMap(){const m={};S.fridge.forEach(f=>{const d=dl(f.exp);if(d<-2)return;if(m[f.ing]===undefined||d<m[f.ing])m[f.ing]=d});return m}
@@ -230,8 +231,8 @@ function toList(ing){if(!S.list.some(l=>l.ing===ing&&!l.c))S.list.push({ing,c:fa
 
 /* ============ RENDU ============ */
 let tab='home';
-let sugg={list:[],idx:0};
-let rFilter='all',rQuery='';
+let sugg={list:[],idx:0,none:false};
+let rFilter='now',rQuery='';
 
 function render(){
   document.getElementById('today').textContent=cap(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
@@ -261,16 +262,19 @@ function vHome(){
 
   h+=`<div class="card hero"><h2 style="font-size:22px">Ce soir, on mange quoi ?</h2><p class="muted" style="margin:0 0 12px">Choisis ton niveau d'énergie, je regarde ton frigo.</p>
   <div class="chips">${[[10,'😴 Flemme · 10 min'],[20,'🙂 Normal · 20 min'],[45,'💪 Motivée · 45 min']].map(([t,l])=>`<button class="chip ${S.settings.energy==t?'on':''}" onclick="setEnergy(${t})">${l}</button>`).join('')}</div>
-  <button class="btn big" style="margin-top:14px;background:#fff;color:var(--green)" onclick="findIdea()">✨ Trouve-moi une idée</button></div>`;
+  <button class="btn big" style="margin-top:14px;background:#fff;color:var(--green)" onclick="findIdea()">🍳 Trouve-moi une idée</button>
+  <button class="btn big" style="margin-top:8px;background:rgba(255,255,255,.14);color:#fff" onclick="aiIdeas()">✨ Invente-moi des recettes (IA)</button>
+  <p class="muted" style="margin:10px 0 0;font-size:13px">Uniquement avec ce qu'il y a dans ton frigo.</p></div>`;
 
+  if(sugg.none){h+=`<div class="card" id="reco"><h2>${S.fridge.length?'🤔 Rien dans mes recettes de base':'🧊 Ton frigo est vide'}</h2><p class="muted" style="margin-top:-4px">${S.fridge.length?"Aucune de mes recettes de base ne se fait uniquement avec ce que tu as. L'IA peut en inventer une avec exactement tes ingrédients.":"Ajoute ce que tu as (photo du ticket, code-barres ou à la main) pour avoir des idées."}</p>
+    ${S.fridge.length?'<button class="btn big" onclick="aiIdeas()">✨ Invente-moi des recettes</button>':`<button class="btn big" onclick="go('fridge')">Remplir mon frigo</button>`}</div>`}
   if(sugg.list.length){const r=sugg.list[sugg.idx].r;
     if(getR(r.id)){const a=analyze(r,fm);
     h+=`<div class="card" id="reco"><div style="display:flex;gap:14px;align-items:center"><div class="em-big">${r.e}</div><div class="grow"><div class="muted">Idée ${sugg.idx+1}/${sugg.list.length} · ${r.t} min${r.v?' · végé':''}</div><h2 style="margin:2px 0 0">${esc(r.n)}</h2></div></div>
     ${a.urgent.length?`<div class="urg">♻️ Ça utilise ${a.urgent.map(x=>esc(ig(x).name.toLowerCase())).join(', ')} avant que ça périme</div>`:''}
     <p style="margin:12px 0">${a.miss.length?`🛒 Il te manque : <b>${a.miss.map(x=>esc(ig(x).name)).join(', ')}</b>`:'✅ Tu as tout ce qu\'il faut'}</p>
     <div class="row"><button class="btn" onclick="cook('${r.id}')">Je cuisine ça</button><button class="btn ghost" onclick="showRecipe('${r.id}')">Recette</button></div>
-    <div class="row" style="margin-top:8px"><button class="btn line" onclick="nextIdea()">↻ Autre idée</button>${a.miss.length?`<button class="btn line" onclick="addMissing('${r.id}')">+ À la liste</button>`:''}</div>
-    ${!S.fridge.length?'<p class="muted" style="margin:12px 0 0">Astuce : ajoute ce que tu as dans 🧊 Frigo pour des idées faites avec <i>ton</i> frigo.</p>':''}</div>`}}
+    <div class="row" style="margin-top:8px"><button class="btn line" onclick="nextIdea()">↻ Autre idée</button><button class="btn line" onclick="aiIdeas()">✨ Plus d'idées (IA)</button></div></div>`}}
 
   h+=`<div class="card"><h2>🛵 Envie de commander ?</h2><p class="muted" style="margin:-4px 0 12px">Avant d'ouvrir Uber Eats, appuie ici.</p><button class="btn warn big" onclick="temptation()">J'allais commander…</button></div>`;
 
@@ -323,10 +327,10 @@ function vShop(){
 }
 
 function vRecipes(){
-  const f=[['all','Toutes'],['now','✅ Faisable maintenant'],['quick','⚡ ≤ 10 min'],['veg','🌱 Végé'],['fav','❤️ Favoris'],['mine','✍️ Les miennes']];
+  const f=[['now',"✅ Avec ce que j'ai"],['all','Toutes'],['quick','⚡ ≤ 10 min'],['veg','🌱 Végé'],['fav','❤️ Favoris'],['mine','✍️ Les miennes']];
   return `<input type="search" placeholder="Chercher une recette ou un ingrédient…" value="${esc(rQuery)}" oninput="rQuery=this.value;renderRecipeList()" style="margin-top:8px">
   <div class="chips scroll-x">${f.map(([k,l])=>`<button class="chip ${rFilter===k?'on':''}" onclick="rFilter='${k}';render()">${l}</button>`).join('')}</div>
-  <div id="rlist"></div><button class="btn ghost big" onclick="newRecipeSheet()">✍️ Ajouter ma propre recette</button>`;
+  <button class="btn big" style="margin-bottom:4px" onclick="aiIdeas()">✨ Invente-moi des recettes avec mon frigo (IA)</button><div id="rlist"></div><button class="btn ghost big" onclick="newRecipeSheet()">✍️ Ajouter ma propre recette</button>`;
 }
 function renderRecipeList(){
   const fm=fridgeMap(),q=norm(rQuery);
@@ -346,10 +350,10 @@ function closeSheet(){stopScan();document.getElementById('sheet').classList.remo
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
 
 /* --- Ce soir --- */
-function setEnergy(t){S.settings.energy=t;save();if(tab==='home'&&sugg.list.length){findIdea(true);return}render()}
+function setEnergy(t){S.settings.energy=t;save();if(tab==='home'&&(sugg.list.length||sugg.none)){findIdea(true);return}render()}
 function findIdea(noScroll){const fm=fridgeMap(),c=eligible(S.settings.energy);
   if(!c.length){toast('Aucune recette avec ces filtres');return}
-  sugg.list=c.map(r=>{const a=analyze(r,fm);return{r,s:score(r,a)+Math.random()*1.2}}).sort((x,y)=>y.s-x.s);sugg.idx=0;render();
+  sugg.list=c.map(r=>{const a=analyze(r,fm);return{r,a,s:score(r,a)+Math.random()*1.2}}).filter(x=>!x.a.miss.length).sort((x,y)=>y.s-x.s);sugg.idx=0;sugg.none=!sugg.list.length;render();
   if(!noScroll)setTimeout(()=>{const e=document.getElementById('reco');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})},60)}
 function nextIdea(){sugg.idx=(sugg.idx+1)%sugg.list.length;render()}
 function addMissing(rid){const r=getR(rid),fm=fridgeMap();const miss=r.i.filter(x=>!(x in fm));miss.forEach(toList);save();render();toast(miss.length+' article'+(miss.length>1?'s':'')+' ajouté'+(miss.length>1?'s':'')+' à ta liste 🛒')}
@@ -370,11 +374,12 @@ function cookDone(rid){cookSel.forEach(removeOne);S.meals.push({d:today(),type:'
   toast('+1 repas maison 💪 ≈ '+money(Math.max(0,S.settings.uber-S.settings.home))+' économisés')}
 
 function temptation(){const fm=fridgeMap(),st=S.settings;
-  const best=eligible(20).map(r=>{const a=analyze(r,fm);return{r,a,s:a.cov*10-a.miss.length*3+a.urg+(r.t<=10?2:0)}}).sort((x,y)=>y.s-x.s)[0];
+  const best=eligible(20).map(r=>{const a=analyze(r,fm);return{r,a,s:a.urg+(r.t<=10?2:0)+Math.random()}}).filter(x=>!x.a.miss.length).sort((x,y)=>y.s-x.s)[0];
   let h=`<div style="text-align:center"><div style="font-size:44px">🛵💸</div><h2>Attends 30 secondes</h2><p class="muted" style="margin-top:-4px">Une commande te coûte environ <b>${money(st.uber)}</b>. Un repas maison, environ <b>${money(st.home)}</b>.</p></div>`;
   if(best){const r=best.r,a=best.a;
-    h+=`<div class="card"><div class="muted">${a.have.length?'Avec ce que tu as, tu peux faire :':'Idée rapide (il faudra passer au magasin) :'}</div><div class="item" style="padding:8px 0 0" onclick="showRecipe('${r.id}')"><div class="em-big">${r.e}</div><div class="grow"><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min · ${a.miss.length?'il manque '+a.miss.map(x=>esc(ig(x).name.toLowerCase())).join(', '):'tu as tout ✅'}</div></div></div></div>
+    h+=`<div class="card"><div class="muted">Avec ce que tu as, tu peux faire :</div><div class="item" style="padding:8px 0 0" onclick="showRecipe('${r.id}')"><div class="em-big">${r.e}</div><div class="grow"><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min · ${a.miss.length?'il manque '+a.miss.map(x=>esc(ig(x).name.toLowerCase())).join(', '):'tu as tout ✅'}</div></div></div></div>
     <button class="btn big" onclick="cook('${r.id}')">OK, je cuisine 💪</button>`}
+  h+=`<button class="btn ghost big" style="margin-top:8px" onclick="aiIdeas()">✨ ${best?"D'autres idées avec mon frigo":'Invente-moi une recette avec mon frigo'}</button>`;
   h+=`<button class="btn line big" style="margin-top:8px" onclick="logOrder()">Je commande quand même</button><p class="muted" style="font-size:13px;text-align:center">Pas de jugement : l'important, c'est de le noter pour voir où part ton argent.</p>`;
   openSheet(h)}
 function logOrder(){openSheet(`<h2>🛵 Noter une commande</h2><label class="f">Montant total (frais et pourboire compris)</label><input type="number" id="amt" inputmode="decimal" value="${S.settings.uber}"><button class="btn big" style="margin-top:16px" onclick="saveOrder()">Enregistrer</button>`)}
@@ -384,27 +389,24 @@ function logHome(){S.meals.push({d:today(),type:'maison'});save();render();toast
 let askCb=null;
 function ask(msg,yes,cb){askCb=cb;openSheet(`<h2>${esc(msg)}</h2><div class="row" style="margin-top:16px"><button class="btn line" onclick="closeSheet()">Annuler</button><button class="btn" style="background:var(--red)" onclick="const f=askCb;askCb=null;f&&f()">${esc(yes)}</button></div>`)}
 /* --- Frigo --- */
-function addSheet(){openSheet(`<h2>Ajouter au frigo</h2><input type="search" id="q" placeholder="Rechercher : poulet, lait, tofu…" oninput="renderAddList()" autocomplete="off"><p class="muted" style="font-size:13px;margin:8px 2px 0">Touche un aliment pour l'ajouter (plusieurs fois si tu en as plusieurs).</p><div id="addlist"></div><div style="position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));background:var(--bg);padding:12px 0 4px;margin-top:12px"><button class="btn big" onclick="closeSheet()">Terminé</button></div>`);renderAddList()}
+function addSheet(){openSheet(`<h2>Ajouter au frigo</h2><input type="search" id="q" placeholder="Rechercher : poulet, lait, tofu…" oninput="renderAddList()" autocomplete="off"><p class="muted" style="font-size:13px;margin:8px 2px 0">Touche un aliment pour l'ajouter (plusieurs fois si tu en as plusieurs). Il n'est pas dans la liste ? Crée-le.</p><button class="btn ghost big" style="margin-top:10px" onclick="newIngSheet()">➕ Nouvel aliment</button><div id="addlist"></div><div style="position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));background:var(--bg);padding:12px 0 4px;margin-top:12px"><button class="btn big" onclick="closeSheet()">Terminé</button></div>`);renderAddList()}
 function renderAddList(){const raw=document.getElementById('q').value,q=norm(raw);
   const ids=allIngIds().filter(id=>!q||norm(ig(id).name).includes(q));const by={};ids.forEach(id=>{(by[ig(id).ray]=by[ig(id).ray]||[]).push(id)});
   let h='';RAYS.forEach(r=>{if(!by[r])return;h+=`<div class="sec-title">${r}</div><div class="chips">${by[r].map(id=>{const n=S.fridge.filter(f=>f.ing===id).length;return `<button class="chip ${n?'on':''}" onclick="quickAdd('${id}')">${ig(id).em} ${esc(ig(id).name)}${n?' ×'+n:''}</button>`}).join('')}</div>`});
   if(q&&!ids.some(id=>norm(ig(id).name)===q))h+=`<button class="btn ghost big" style="margin-top:18px" onclick="newIngSheet()">+ Créer « ${esc(raw.trim())} »</button>`;
   document.getElementById('addlist').innerHTML=h}
 function quickAdd(id){addToFridge(id);save();render();renderAddList();const g=ig(id);toast(g.em+' '+g.name+' ajouté · '+dlLabel(g.days))}
-function newIngSheet(){const name=(document.getElementById('q')||{}).value||'';
-  openSheet(`<h2>Nouvel aliment</h2><label class="f">Nom</label><input type="text" id="nn" value="${esc(name.trim())}">
-  <label class="f">Se garde combien de jours (environ) ?</label><input type="number" id="nd" inputmode="numeric" value="7">
-  <label class="f">Rayon</label><select id="nr">${RAYS.map(r=>`<option ${r==='Autre'?'selected':''}>${r}</option>`).join('')}</select>
-  <button class="btn big" style="margin-top:16px" onclick="saveNewIng()">Ajouter au frigo</button>`)}
-function saveNewIng(){const n=document.getElementById('nn').value.trim();if(!n){toast('Donne-lui un nom');return}
-  const id='x'+uid();S.custom.ings[id]={name:n,ray:document.getElementById('nr').value,days:Math.max(1,parseInt(document.getElementById('nd').value)||7),em:'🍽️'};
-  addToFridge(id);save();closeSheet();render();toast(n+' ajouté')}
+function newIngSheet(){const name=((document.getElementById('q')||{}).value||'').trim();ingEditor(null,name,id=>{addToFridge(id);save();render();closeSheet();toast(ig(id).em+' '+ig(id).name+' ajouté au frigo')})}
 function itemSheet(fid){const f=S.fridge.find(x=>x.id===fid);if(!f)return;const g=ig(f.ing),d=dl(f.exp);
   openSheet(`<div style="text-align:center"><div style="font-size:48px">${g.em}</div><h2 style="margin:4px 0 8px">${esc(g.name)}</h2><span class="badge ${dlClass(d)}">${dlLabel(d)}</span></div>
   <label class="f">Date limite</label><input type="date" value="${f.exp}" onchange="setExp('${fid}',this.value)">
   <div class="row" style="margin-top:16px"><button class="btn" onclick="useItem('${fid}')">✅ Fini</button><button class="btn warn" onclick="trashItem('${fid}')">🗑️ Jeté</button></div>
   <button class="btn ghost big" style="margin-top:8px" onclick="ideasWith('${f.ing}')">💡 Idées avec ça</button>
-  <button class="btn line big" style="margin-top:8px" onclick="toList('${f.ing}');save();toast('Ajouté à la liste de courses 🛒')">+ En racheter</button>`)}
+  <button class="btn line big" style="margin-top:8px" onclick="toList('${f.ing}');save();toast('Ajouté à la liste de courses 🛒')">+ En racheter</button>
+  <button class="btn line big" style="margin-top:8px" onclick="itemChange('${fid}')">✎ Ce n'est pas le bon aliment</button>
+  ${S.custom.ings[f.ing]?`<button class="btn line big" style="margin-top:8px" onclick="ingEditor('${f.ing}',null,()=>itemSheet('${fid}'))">🏷️ Modifier « ${esc(g.name)} »</button>`:''}`)}
+function itemChange(fid){const f=S.fridge.find(x=>x.id===fid);if(!f)return;
+  pickIng("C'est quoi exactement ?",f.ing,id=>{f.ing=id;save();render();itemSheet(fid);toast('Corrigé : '+ig(id).name)},ig(f.ing).name)}
 function setExp(fid,v){const f=S.fridge.find(x=>x.id===fid);if(f&&v){f.exp=v;save();render();itemSheet(fid)}}
 function useItem(fid){S.fridge=S.fridge.filter(x=>x.id!==fid);save();closeSheet();render();toast('Bien joué ✅')}
 function trashItem(fid){const f=S.fridge.find(x=>x.id===fid);S.fridge=S.fridge.filter(x=>x.id!==fid);if(f)S.waste.push({d:today(),ing:f.ing});save();closeSheet();render();toast("Noté. Le but : faire baisser ce chiffre le mois prochain")}
@@ -415,12 +417,13 @@ function ideasWith(ing){const fm=fridgeMap();const L=recipes().filter(r=>(!S.set
 function ingLine(x,fm){const g=ig(x),h=x in fm;
   return `<div class="item" style="padding:8px 2px"><div class="em" style="font-size:20px">${g.em}</div><div class="grow">${esc(g.name)}</div>${h?`<span class="badge ${fm[x]<=5?dlClass(fm[x]):'b-green'}">${fm[x]<=5?dlLabel(fm[x]):'✓ au frigo'}</span>`:'<span class="badge b-grey">à acheter</span>'}</div>`}
 function showRecipe(rid){const r=getR(rid);if(!r)return;const fm=fridgeMap(),a=analyze(r,fm),fav=S.favs.includes(rid);
-  openSheet(`<div style="display:flex;gap:14px;align-items:center"><div class="em-big">${r.e}</div><div class="grow"><h2 style="margin:0">${esc(r.n)}</h2><div class="muted">⏱ ${r.t} min${r.v?' · 🌱 végé':''}</div></div><button class="icon-btn" onclick="toggleFav('${rid}')" aria-label="Favori">${fav?'❤️':'🤍'}</button></div>
+  openSheet(`<div style="display:flex;gap:14px;align-items:center"><div class="em-big">${r.e}</div><div class="grow"><h2 style="margin:0">${esc(r.n)}</h2><div class="muted">⏱ ${r.t} min${r.v?' · 🌱 végé':''}</div></div>${r.ai?'':`<button class="icon-btn" onclick="toggleFav('${rid}')" aria-label="Favori">${fav?'❤️':'🤍'}</button>`}</div>
   <div class="sec-title">Ingrédients</div><div class="card" style="padding:2px 14px;margin-top:0">${r.i.map(x=>ingLine(x,fm)).join('')}</div>
   ${r.o&&r.o.length?`<div class="sec-title">En option</div><div class="card" style="padding:2px 14px;margin-top:0">${r.o.map(x=>ingLine(x,fm)).join('')}</div>`:''}
-  <p class="muted" style="font-size:13px;margin:4px 2px">+ sel, poivre, huile (je pars du principe que tu en as).</p>
+  <p class="muted" style="font-size:13px;margin:4px 2px">+ ${r.extras&&r.extras.length?esc(r.extras.join(', ')):'sel, poivre, huile'} (je pars du principe que tu en as).</p>
   <div class="sec-title">Étapes</div><ol class="steps">${r.s.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
   <div class="row" style="margin-top:16px"><button class="btn" onclick="cook('${rid}')">Je cuisine ça</button>${a.miss.length?`<button class="btn ghost" onclick="addMissing('${rid}')">+ ${a.miss.length} à la liste</button>`:''}</div>
+  ${r.ai?`<button class="btn ghost big" style="margin-top:8px" onclick="keepAi('${rid}')">💾 Garder dans mes recettes</button><button class="btn line big" style="margin-top:8px" onclick="showAiList()">← Les autres idées</button>`:''}
   ${r.custom?`<button class="btn line big" style="margin-top:8px;color:var(--red)" onclick="delRecipe('${rid}')">Supprimer cette recette</button>`:''}`)}
 function toggleFav(rid){S.favs=S.favs.includes(rid)?S.favs.filter(x=>x!==rid):S.favs.concat(rid);save();render();showRecipe(rid)}
 function delRecipe(rid){ask('Supprimer cette recette ?','Supprimer',()=>doDelRecipe(rid))}
@@ -542,12 +545,13 @@ async function onPhoto(input){const f=input.files&&input.files[0];if(!f)return;
       return{id,name:String(x.name_fr||'Aliment'),days:id?ig(id).days:Math.min(400,Math.max(1,parseInt(x.days)||7)),qty:Math.min(6,Math.max(1,parseInt(x.quantity)||1)),on:true}});
     photoKind=data.kind;
     if(!photoItems.length){openSheet(`<div class="empty"><div class="em">🤔</div><b>Je n'ai trouvé aucun aliment</b>Essaie avec plus de lumière, le ticket bien à plat et en entier.</div><button class="btn big" onclick="photoAdd()">Reprendre une photo</button>`);return}
-    openSheet(`<h2>${photoKind==='ticket'?'🧾 Ton ticket':'📸 Ta photo'}</h2><p class="muted" style="margin-top:-4px">Décoche ce qui ne va pas au frigo. Les dates sont estimées : tu pourras les corriger dans 🧊 Frigo.</p><div id="preview"></div>`);
-    renderPhotoReview()}
+    showPhotoReview()}
   catch(e){openSheet(`<div class="empty"><div class="em">⚠️</div><b>Ça n'a pas marché</b>${esc(e.message)}</div><button class="btn big" onclick="photoAdd()">Réessayer</button><button class="btn line big" style="margin-top:8px" onclick="geminiSetup()">Vérifier ma clé</button>`)}}
+function showPhotoReview(){openSheet(`<h2>${photoKind==='ticket'?'🧾 Ton ticket':'📸 Ta photo'}</h2><p class="muted" style="margin-top:-4px">Décoche ce qui ne va pas au frigo, et touche ✎ si un aliment est mal reconnu. Les dates sont estimées : tu pourras les corriger dans 🧊 Frigo.</p><div id="preview"></div>`);renderPhotoReview()}
+function photoChange(i){const x=photoItems[i];pickIng("C'est quoi exactement ?",x.id,id=>{x.id=id;x.days=ig(id).days;x.on=true;showPhotoReview()},x.name)}
 function renderPhotoReview(){const n=photoItems.filter(x=>x.on).length;
   document.getElementById('preview').innerHTML=`<div class="card" style="padding:2px 14px">${photoItems.map((x,i)=>{const g=x.id?ig(x.id):{name:x.name,em:'🛍️'};
-    return `<div class="item" onclick="photoItems[${i}].on=!photoItems[${i}].on;renderPhotoReview()"><span class="check ${x.on?'on':''}">${x.on?'✓':''}</span><div class="em">${g.em}</div><div class="grow"><div class="name">${esc(g.name)}${x.qty>1?' ×'+x.qty:''}</div>${x.id?'':'<div class="muted">nouveau produit</div>'}</div><span class="badge ${dlClass(x.days)}">${dlLabel(x.days)}</span></div>`}).join('')}</div>
+    return `<div class="item" onclick="photoItems[${i}].on=!photoItems[${i}].on;renderPhotoReview()"><span class="check ${x.on?'on':''}">${x.on?'✓':''}</span><div class="em">${g.em}</div><div class="grow"><div class="name">${esc(g.name)}${x.qty>1?' ×'+x.qty:''}</div>${x.id?'':'<div class="muted">nouveau produit</div>'}</div><span class="badge ${dlClass(x.days)}">${dlLabel(x.days)}</span><button class="chip" style="padding:4px 10px" onclick="event.stopPropagation();photoChange(${i})" aria-label="Changer">✎</button></div>`}).join('')}</div>
   <button class="btn big" ${n?'':'disabled'} onclick="photoConfirm()">Ranger ${n} aliment${n>1?'s':''} au frigo</button>`}
 function customIng(name,days){const ex=findIng(name);if(ex)return ex;const id='x'+uid();S.custom.ings[id]={name,ray:'Autre',days:days||7,em:'🛍️'};return id}
 function markBought(ids){S.list=S.list.filter(l=>!(l.ing&&ids.includes(l.ing)))}
@@ -568,7 +572,7 @@ async function scanBarcode(){stopScan();
     const ctl=await reader.decodeFromConstraints({video:{facingMode:'environment'}},'scanv',(res,err,c)=>{if(res&&scanOn){scanOn=false;try{c.stop()}catch(e){}scanCtl=null;if(navigator.vibrate)navigator.vibrate(60);onBarcode(res.getText())}});
     if(!scanOn){try{ctl.stop()}catch(e){}return}scanCtl=ctl;msg('Vise le code-barres, bien éclairé.')}
   catch(e){msg(e&&e.name==='NotAllowedError'?"Caméra bloquée. Ouvre l'app dans Safari, depuis son adresse en ligne (GitHub), puis accepte quand Safari demande l'accès à la caméra. Si tu as refusé : Réglages iPhone → Apps → Safari → Caméra → Demander.":(e&&e.message)||'Caméra indisponible.')}}
-const PMAP=[[/lait de coco|coconut milk|coconut cream/,'lait_coco'],[/gochujang/,'gochujang'],[/kimchi/,'kimchi'],[/curry/,'curry'],[/pesto/,'pesto'],[/sauce soja|soy sauce|soya sauce|tamari/,'sauce_soja'],[/\boeufs?\b|\beggs?\b/,'oeufs'],[/yaourt|yogourt|yogurt|yoghurt/,'yaourt'],[/beurre|butter/,'beurre'],[/creme|cream/,'creme'],[/parmesan|parmigiano|grana padano/,'parmesan'],[/feta/,'feta'],[/mozzarella/,'mozzarella'],[/rape|grated|shredded|emmental|cheddar|gruyere/,'fromage_rape'],[/lardon|bacon/,'lardons'],[/jambon|\bham\b/,'jambon'],[/tofu/,'tofu'],[/poulet|chicken/,'poulet'],[/boeuf hache|ground beef|steak hache|minced beef/,'boeuf_hache'],[/saumon|salmon/,'saumon'],[/\bthon\b|tuna/,'thon'],[/saucisse|sausage/,'saucisses'],[/tortilla|\bwraps?\b/,'tortillas'],[/pain de mie|sandwich bread|sliced bread/,'pain_mie'],[/nouille|noodle|ramen|udon|ramyun|ramyeon/,'nouilles'],[/\bpates?\b|pasta|spaghetti|penne|fusilli|macaroni|linguine|tagliatelle|rigatoni/,'pates'],[/\briz\b|\brices?\b/,'riz'],[/lentille|lentil/,'lentilles'],[/pois chiche|chickpea|garbanzo/,'pois_chiches'],[/haricots? rouges?|kidney bean|red bean/,'haricots_rouges'],[/\bmais\b|sweet corn|\bcorn\b/,'mais'],[/petits? pois|green peas|\bpeas\b/,'petits_pois'],[/tomate|tomato|passata|marinara/,'tomates_conc'],[/\bmiel\b|honey/,'miel'],[/epinard|spinach/,'epinards'],[/champignon|mushroom/,'champignons'],[/salade|lettuce/,'salade'],[/\blait\b|\bmilks?\b/,'lait'],[/\bpain\b|bread|baguette/,'pain']];
+const PMAP=[[/yaourt|yogourt|yogurt|yoghurt/,'yaourt'],[/lait de coco|coconut milk|coconut cream/,'lait_coco'],[/gochujang/,'gochujang'],[/kimchi/,'kimchi'],[/curry/,'curry'],[/pesto/,'pesto'],[/sauce soja|soy sauce|soya sauce|tamari/,'sauce_soja'],[/\boeufs?\b|\beggs?\b/,'oeufs'],[/beurre|butter/,'beurre'],[/creme|cream/,'creme'],[/parmesan|parmigiano|grana padano/,'parmesan'],[/feta/,'feta'],[/mozzarella/,'mozzarella'],[/rape|grated|shredded|emmental|cheddar|gruyere/,'fromage_rape'],[/lardon|bacon/,'lardons'],[/jambon|\bham\b/,'jambon'],[/tofu/,'tofu'],[/poulet|chicken/,'poulet'],[/boeuf hache|ground beef|steak hache|minced beef/,'boeuf_hache'],[/saumon|salmon/,'saumon'],[/\bthon\b|tuna/,'thon'],[/saucisse|sausage/,'saucisses'],[/tortilla|\bwraps?\b/,'tortillas'],[/pain de mie|sandwich bread|sliced bread/,'pain_mie'],[/nouille|noodle|ramen|udon|ramyun|ramyeon/,'nouilles'],[/\bpates?\b|pasta|spaghetti|penne|fusilli|macaroni|linguine|tagliatelle|rigatoni/,'pates'],[/\briz\b|\brices?\b/,'riz'],[/lentille|lentil/,'lentilles'],[/pois chiche|chickpea|garbanzo/,'pois_chiches'],[/haricots? rouges?|kidney bean|red bean/,'haricots_rouges'],[/\bmais\b|sweet corn|\bcorn\b/,'mais'],[/petits? pois|green peas|\bpeas\b/,'petits_pois'],[/tomate|tomato|passata|marinara/,'tomates_conc'],[/\bmiel\b|honey/,'miel'],[/epinard|spinach/,'epinards'],[/champignon|mushroom/,'champignons'],[/salade|lettuce/,'salade'],[/\blait\b|\bmilks?\b/,'lait'],[/\bpain\b|bread|baguette/,'pain']];
 function mapProduct(name,cats){const a=norm(name).replace(/[-_]/g,' ');for(const [re,id] of PMAP)if(re.test(a))return id;
   const c=norm((cats||[]).join(' ')).replace(/[a-z]{2}:/g,' ').replace(/-/g,' ');for(const [re,id] of PMAP)if(re.test(c))return id;return null}
 let bc={};
@@ -578,25 +582,100 @@ async function onBarcode(code){openSheet(`<div class="empty"><div class="spin"><
     const d=await r.json();if(d&&d.status===1&&d.product)p=d.product}
   catch(e){err="Je n'arrive pas à joindre la base de produits (connexion ?)."}
   const name=p?(p.product_name_fr||p.product_name||p.product_name_en||p.generic_name_fr||''):'';
-  bc={code,name,brand:p&&p.brands?String(p.brands).split(',')[0]:'',sel:p?mapProduct(name+' '+(p.generic_name_fr||''),p.categories_tags):null,found:!!p,err};
-  const g=bc.sel?ig(bc.sel):null;
+  const known=S.barcodes[code];
+  bc={code,name,brand:p&&p.brands?String(p.brands).split(',')[0]:'',found:!!p,err,remembered:false,
+      sel:known&&(ING[known]||S.custom.ings[known])?known:(p?mapProduct(name+' '+(p.generic_name_fr||''),p.categories_tags):null)};
+  bc.remembered=!!(known&&bc.sel===known);
+  bc.date=addDays(today(),bc.sel?ig(bc.sel).days:7);
+  renderBarcode()}
+function renderBarcode(){const g=bc.sel?ig(bc.sel):null;
   openSheet(`<h2>${bc.found?'✅ Produit trouvé':'🤷 Produit inconnu'}</h2>
-  ${bc.found?`<div class="card" style="margin-top:0"><div class="name">${esc(bc.name||'Produit sans nom')}</div>${bc.brand?`<div class="muted">${esc(bc.brand)}</div>`:''}</div>`:`<p class="muted" style="margin-top:-4px">${esc(bc.err||"Ce code-barres n'est pas dans la base Open Food Facts.")} Choisis l'aliment à la main :</p>`}
-  <label class="f">Je le range comme</label><div id="bcsel"></div>
-  <input type="search" id="bq" placeholder="Changer : chercher un aliment…" oninput="renderBcPick()" style="margin-top:10px" autocomplete="off"><div id="bcpick" style="max-height:200px;overflow:auto;margin-top:8px"></div>
-  <label class="f">Date limite</label><input type="date" id="bcdate" value="${addDays(today(),g?g.days:7)}">
-  <button class="btn big" style="margin-top:16px" onclick="barcodeConfirm(false)">Ajouter au frigo</button>
-  <button class="btn ghost big" style="margin-top:8px" onclick="barcodeConfirm(true)">Ajouter et scanner le suivant</button>`);
-  renderBcPick()}
-function renderBcPick(){const g=bc.sel?ig(bc.sel):null;
-  document.getElementById('bcsel').innerHTML=g?`<div class="chips"><span class="chip on">${g.em} ${esc(g.name)}</span></div>`:(bc.name?`<div class="chips"><span class="chip on">🛍️ ${esc(bc.name)} (nouveau produit)</span></div>`:'<span class="muted">Choisis un aliment ci-dessous</span>');
-  const q=norm(document.getElementById('bq').value);const ids=q?allIngIds().filter(id=>norm(ig(id).name).includes(q)):(g||bc.name?[]:allIngIds());
-  document.getElementById('bcpick').innerHTML=`<div class="chips">${ids.map(id=>`<button class="chip" onclick="bcPick('${id}')">${ig(id).em} ${esc(ig(id).name)}</button>`).join('')}</div>`}
-function bcPick(id){bc.sel=id;document.getElementById('bq').value='';document.getElementById('bcdate').value=addDays(today(),ig(id).days);renderBcPick()}
-function barcodeConfirm(next){let id=bc.sel;
-  if(!id){if(!bc.name){toast('Choisis un aliment');return}id=customIng(bc.name,7)}
-  addToFridge(id,document.getElementById('bcdate').value||addDays(today(),ig(id).days));markBought([id]);save();render();
+  ${bc.found?`<div class="card" style="margin-top:0"><div class="name">${esc(bc.name||'Produit sans nom')}</div>${bc.brand?`<div class="muted">${esc(bc.brand)}</div>`:''}</div>`:`<p class="muted" style="margin-top:-4px">${esc(bc.err||"Ce code-barres n'est pas encore dans la base Open Food Facts.")} Choisis l'aliment ou crée-le :</p>`}
+  <label class="f">Je le range comme${bc.remembered?' (ton choix de la dernière fois)':''}</label>
+  <div class="item" style="background:#fff;border-radius:14px;padding:10px 12px;border:1.5px solid var(--line)" onclick="bcChange()"><div class="em">${g?g.em:'❓'}</div><div class="grow"><div class="name">${g?esc(g.name):'À choisir'}</div></div><span class="btn ghost" style="padding:9px 12px;font-size:14px;flex:none">✎ Changer</span></div>
+  <label class="f">Date limite</label><input type="date" value="${bc.date}" onchange="bc.date=this.value">
+  <button class="btn big" style="margin-top:16px" ${g?'':'disabled'} onclick="barcodeConfirm(false)">Ajouter au frigo</button>
+  <button class="btn ghost big" style="margin-top:8px" ${g?'':'disabled'} onclick="barcodeConfirm(true)">Ajouter et scanner le suivant</button>
+  <button class="btn line big" style="margin-top:8px" onclick="closeSheet()">Annuler</button>`)}
+function bcChange(){pickIng('Je le range comme…',bc.sel,id=>{bc.sel=id;bc.remembered=false;bc.date=addDays(today(),ig(id).days);renderBarcode()},bc.name)}
+function barcodeConfirm(next){const id=bc.sel;if(!id){bcChange();return}
+  S.barcodes[bc.code]=id;addToFridge(id,bc.date||addDays(today(),ig(id).days));markBought([id]);save();render();
   toast(ig(id).em+' '+ig(id).name+' ajouté');next?scanBarcode():closeSheet()}
+
+/* ============ CHOISIR / CRÉER UN ALIMENT ============ */
+let pickCb=null,pickCur=null,pickHint='';
+function pickIng(title,cur,cb,hint){pickCb=cb;pickCur=cur;pickHint=hint||'';
+  openSheet(`<h2>${esc(title)}</h2><input type="search" id="pq" placeholder="Chercher un aliment…" oninput="renderPick()" autocomplete="off"><div id="plist"></div>`);renderPick()}
+function renderPick(){const raw=document.getElementById('pq').value.trim(),q=norm(raw);
+  const ids=allIngIds().filter(id=>!q||norm(ig(id).name).includes(q));const by={};ids.forEach(id=>{(by[ig(id).ray]=by[ig(id).ray]||[]).push(id)});
+  const nn=raw||pickHint;
+  let h=`<button class="btn ghost big" style="margin-top:12px" onclick="pickNew()">➕ Créer un nouvel aliment${nn?` : « ${esc(nn)} »`:''}</button>`;
+  RAYS.forEach(r=>{if(!by[r])return;h+=`<div class="sec-title">${r}</div><div class="chips">${by[r].map(id=>`<button class="chip ${id===pickCur?'on':''}" onclick="pickDone('${id}')">${ig(id).em} ${esc(ig(id).name)}</button>`).join('')}</div>`});
+  if(!ids.length)h+=`<p class="muted" style="margin-top:12px">Aucun aliment ne correspond : crée-le avec le bouton ci-dessus.</p>`;
+  document.getElementById('plist').innerHTML=h}
+function pickDone(id){const cb=pickCb;pickCb=null;if(cb)cb(id)}
+function pickNew(){const raw=document.getElementById('pq').value.trim();const cb=pickCb;ingEditor(null,raw||pickHint,id=>{if(cb)cb(id)})}
+
+const EMOJIS=['🥥','🥛','🧀','🥣','🧈','🥚','🍗','🥩','🐟','🦐','🥓','🌭','🥬','🥦','🥕','🍅','🫑','🥒','🍄','🧅','🍎','🍌','🍓','🫐','🍇','🍊','🍋','🥑','🍞','🥐','🍝','🍚','🍜','🫘','🥫','🍫','🍪','🧃','🥤','🍦','🍯','🌶️','🛍️'];
+let edId=null,edAfter=null;
+function ingEditor(id,prefill,after){edId=id;edAfter=after||null;const u=id?S.custom.ings[id]:null;
+  openSheet(`<h2>${id?"Modifier l'aliment":'Nouvel aliment'}</h2>
+  <label class="f">Nom</label><input type="text" id="en" value="${esc(u?u.name:(prefill||''))}" placeholder="Ex. Yaourt coco">
+  <label class="f">Icône</label><div style="display:flex;gap:10px;align-items:center"><input type="text" id="ee" value="${esc(u?u.em:'🛍️')}" style="width:72px;text-align:center;font-size:24px;padding:8px"><span class="muted">choisis ci-dessous ou tape un emoji</span></div>
+  <div class="chips" style="margin-top:8px">${EMOJIS.map(e=>`<button class="chip" style="font-size:20px;padding:4px 8px" onclick="document.getElementById('ee').value='${e}'">${e}</button>`).join('')}</div>
+  <label class="f">Rayon</label><select id="er">${RAYS.map(r=>`<option ${r===(u?u.ray:'Frais')?'selected':''}>${r}</option>`).join('')}</select>
+  <label class="f">Se garde combien de jours après l'achat (environ) ?</label><input type="number" id="ed" inputmode="numeric" value="${u?u.days:7}">
+  <button class="btn big" style="margin-top:16px" onclick="saveIng()">Enregistrer</button>
+  ${id?`<button class="btn line big" style="margin-top:8px;color:var(--red)" onclick="delIng('${id}')">Supprimer cet aliment</button>`:''}`)}
+function saveIng(){const n=document.getElementById('en').value.trim();if(!n){toast('Donne-lui un nom');return}
+  if(!edId){const same=allIngIds().find(x=>norm(ig(x).name)===norm(n));if(same){const cb=edAfter;edAfter=null;toast('« '+ig(same).name+' » existe déjà');if(cb)cb(same);else closeSheet();return}}
+  const id=edId||'x'+uid();
+  S.custom.ings[id]={name:n,em:Array.from(document.getElementById('ee').value.trim()||'🛍️').slice(0,3).join(''),ray:document.getElementById('er').value,days:Math.max(1,Math.min(999,parseInt(document.getElementById('ed').value)||7))};
+  save();render();const cb=edAfter;edAfter=null;toast(edId?'Aliment modifié':'Aliment créé : '+n);if(cb)cb(id);else closeSheet()}
+function delIng(id){const n=ig(id).name;
+  ask('Supprimer « '+n+' » ? Il sera aussi retiré de ton frigo et de ta liste.','Supprimer',()=>{delete S.custom.ings[id];
+    S.fridge=S.fridge.filter(f=>f.ing!==id);S.list=S.list.filter(l=>l.ing!==id);S.custom.recipes.forEach(r=>{r.i=r.i.filter(x=>x!==id);r.o=(r.o||[]).filter(x=>x!==id)});
+    Object.keys(S.barcodes).forEach(k=>{if(S.barcodes[k]===id)delete S.barcodes[k]});save();render();manageIngs();toast('Supprimé')})}
+function manageIngs(){const ids=Object.keys(S.custom.ings).sort((a,b)=>ig(a).name.localeCompare(ig(b).name,'fr'));
+  openSheet(`<h2>🏷️ Mes aliments</h2><p class="muted" style="margin-top:-4px">Les aliments que tu as créés. Touche-en un pour changer son nom, son icône, son rayon ou sa durée de conservation.</p>
+  <button class="btn big" onclick="ingEditor(null,'',()=>manageIngs())">➕ Nouvel aliment</button>
+  ${ids.length?`<div class="card" style="padding:2px 14px">${ids.map(id=>{const g=ig(id);return `<div class="item" onclick="ingEditor('${id}',null,()=>manageIngs())"><div class="em">${g.em}</div><div class="grow"><div class="name">${esc(g.name)}</div><div class="muted">${esc(g.ray)} · se garde ~${g.days} j</div></div><span class="muted">✎</span></div>`}).join('')}</div>`:'<p class="muted" style="text-align:center;margin-top:16px">Aucun pour l\'instant.</p>'}`)}
+
+
+/* ============ RECETTES INVENTÉES PAR L'IA (avec le frigo uniquement) ============ */
+const AI_SCHEMA={type:'OBJECT',properties:{recipes:{type:'ARRAY',items:{type:'OBJECT',properties:{name:{type:'STRING'},emoji:{type:'STRING'},minutes:{type:'INTEGER'},vegetarian:{type:'BOOLEAN'},ingredients:{type:'ARRAY',items:{type:'STRING'}},extras:{type:'ARRAY',items:{type:'STRING'}},steps:{type:'ARRAY',items:{type:'STRING'}}},required:['name','emoji','minutes','ingredients','steps']}}},required:['recipes']};
+async function aiIdeas(more){
+  if(!S.settings.gkey){geminiSetup();return}
+  const fm=fridgeMap(),have=Object.keys(fm);
+  if(!have.length){closeSheet();toast("Ajoute d'abord ce que tu as dans 🧊 Frigo");go('fridge');return}
+  openSheet(`<div class="empty"><div class="spin"></div><b>J'invente des recettes avec ton frigo…</b>Ça prend quelques secondes.</div>`);
+  const inv=have.map(id=>id+': '+ig(id).name+(fm[id]<=3?' (À UTILISER VITE : '+dlLabel(fm[id])+')':'')).join('\n');
+  const prompt=`Tu aides une étudiante qui a la flemme de cuisiner et qui ne peut PAS faire de courses ce soir.
+Propose 4 recettes différentes à faire maintenant, UNIQUEMENT avec les ingrédients disponibles ci-dessous. Elle n'est pas obligée de tout utiliser.
+Seuls ajouts permis (mets-les dans extras) : sel, poivre, huile, eau, et basiques de placard (sucre, farine, vinaigre, moutarde, épices sèches). Rien d'autre.
+Utilise en priorité les ingrédients marqués « À UTILISER VITE ».
+Temps total maximum : ${S.settings.energy} minutes. Pour 1 personne.${S.settings.veg?' Végétarien strict.':''}
+Varie les styles (français, italien, asiatique, coréen, mexicain, du monde…) : pas 4 fois des pâtes. Des recettes simples mais qui donnent envie.
+Étapes courtes, en français, en tutoyant, avec les quantités (ex. « 2 œufs », « 100 g de riz »).
+${aiSeen.length?'Ne repropose pas : '+aiSeen.slice(-30).join(' ; ')+'.':''}
+Dans "ingredients", mets UNIQUEMENT des id de cette liste (id: nom) :
+${inv}`;
+  try{const txt=await gemini([{text:prompt}],AI_SCHEMA);let d;try{d=JSON.parse(txt)}catch(e){throw new Error("Je n'ai pas réussi à lire la réponse. Réessaie.")}
+    const fresh=(d.recipes||[]).filter(x=>!(x.ingredients||[]).some(id=>(ING[id]||S.custom.ings[id])&&!(id in fm))).map(x=>{const i=[...new Set((x.ingredients||[]).filter(id=>id in fm))];
+      return{id:'ai'+uid(),n:String(x.name||'Recette'),e:Array.from(String(x.emoji||'🍽️')).slice(0,2).join(''),t:Math.max(1,parseInt(x.minutes)||S.settings.energy),v:!!x.vegetarian||S.settings.veg,i,o:[],s:(x.steps||[]).map(String),extras:(x.extras||[]).map(String),ai:true}}).filter(r=>r.i.length&&r.s.length);
+    if(!fresh.length)throw new Error("Je n'ai pas trouvé de recette avec ces ingrédients. Réessaie, ou ajoute ce que tu as d'autre au frigo.");
+    aiList=more?aiList.concat(fresh):fresh;fresh.forEach(r=>aiSeen.push(r.n));showAiList(more?aiList.length-fresh.length:0)}
+  catch(e){openSheet(`<div class="empty"><div class="em">⚠️</div><b>Ça n'a pas marché</b>${esc(e.message)}</div><button class="btn big" onclick="aiIdeas()">Réessayer</button>`)}}
+function showAiList(scrollTo){const fm=fridgeMap();
+  openSheet(`<h2>✨ Avec ce que tu as</h2><p class="muted" style="margin-top:-4px">${aiList.length} idée${aiList.length>1?'s':''} inventée${aiList.length>1?'s':''} pour toi · ≤ ${S.settings.energy} min · sans courses</p>
+  <div class="card" style="padding:2px 14px">${aiList.map((r,k)=>{const urg=r.i.filter(x=>fm[x]!==undefined&&fm[x]<=3);
+    return `<div class="item" id="ai${k}" onclick="showRecipe('${r.id}')"><div class="em" style="font-size:30px">${esc(r.e)}</div><div class="grow"><div class="name">${esc(r.n)}</div><div class="muted">${r.t} min · ${r.i.map(x=>esc(ig(x).name.toLowerCase())).join(', ')}</div>${urg.length?`<div style="color:var(--tomato);font-size:13px;font-weight:600">♻️ utilise ce qui périme bientôt</div>`:''}</div></div>`}).join('')}</div>
+  <button class="btn big" onclick="aiIdeas(true)">✨ Encore d'autres idées</button>
+  <p class="muted" style="font-size:12px;text-align:center;margin-top:10px">Recettes inventées par l'IA : vérifie la cuisson, surtout pour la viande et le poisson.</p>`);
+  if(scrollTo){const el=document.getElementById('ai'+scrollTo);if(el)el.scrollIntoView({block:'center'})}}
+function keepAi(rid){const r=aiList.find(x=>x.id===rid);if(!r)return;
+  if(S.custom.recipes.some(c=>c.n===r.n)){toast('Déjà dans tes recettes');return}
+  S.custom.recipes.push({id:'c'+uid(),n:r.n,e:r.e,t:r.t,v:r.v,i:r.i.slice(),o:[],s:r.s.slice(),extras:r.extras,custom:true});save();toast('Gardée dans 📖 Recettes → ✍️ Les miennes')}
 
 /* --- Réglages --- */
 function openSettings(){const st=S.settings;
@@ -605,6 +684,7 @@ function openSettings(){const st=S.settings;
   <label class="f">Coût moyen d'un repas fait maison</label><input type="number" inputmode="decimal" value="${st.home}" onchange="setSet('home',parseFloat(this.value)||0)">
   <label class="f">Heure du rappel « ce soir on cuisine »</label><input type="time" value="${st.hour}" onchange="setSet('hour',this.value||'18:00')">
   <label class="item" style="cursor:pointer;margin-top:8px"><div class="grow"><div class="name">🌱 Je mange végétarien</div><div class="muted">Masque les recettes avec viande ou poisson</div></div><input type="checkbox" ${st.veg?'checked':''} onchange="setSet('veg',this.checked)" style="width:24px;height:24px"></label>
+  <div class="sec-title">🏷️ Aliments</div><button class="btn ghost big" onclick="manageIngs()">Mes aliments (créer, modifier)</button>
   <div class="sec-title">📸 Reconnaissance photo (Gemini)</div>
   ${st.gkey?`<div class="item"><div class="grow"><div class="name">Clé enregistrée</div><div class="muted">••••${esc(st.gkey.slice(-4))}${st.gmodel?' · '+esc(st.gmodel):''}</div></div><button class="chip" onclick="geminiSetup()">Modifier</button><button class="chip" onclick="setSet('gkey','');openSettings()">Retirer</button></div>`:`<button class="btn ghost big" onclick="geminiSetup()">Activer la reconnaissance photo</button>`}
   <div class="sec-title">Sauvegarde</div><p class="muted" style="font-size:13px;margin:0 2px 10px">Tes données restent uniquement sur ce téléphone, dans ce navigateur. Exporte une sauvegarde de temps en temps.</p>
