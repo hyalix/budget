@@ -201,6 +201,14 @@ button.what { background: none; border: 0; padding: 0; text-align: left; cursor:
 
 .restore { display: block; text-align: center; cursor: pointer; }
 
+/* Exceptional expenses */
+.repays { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.repay { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.repay-top { display: flex; justify-content: space-between; gap: 10px; }
+.repay-top span { color: var(--muted); font-size: 13px; }
+.repay .save-track span { background: var(--save); }
+.repay p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
 /* Per-card tiles */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; background: var(--bg); }
@@ -322,6 +330,7 @@ details.card[open] > summary::after { content: "–"; }
   <section class="card" id="saveCard">
     <div class="card-head"><h2>Mon épargne</h2><span class="label" id="saveDeadline"></span></div>
     <div id="saveBody"><p class="empty">Fixez un objectif d'épargne dans « Mon plan » plus bas.</p></div>
+    <div class="repays" id="repayBody" hidden></div>
   </section>
 
   <form class="card" id="addForm" autocomplete="off">
@@ -363,6 +372,18 @@ details.card[open] > summary::after { content: "–"; }
     <div class="group">
       <div class="label" id="cardLabel">Carte utilisée</div>
       <div class="chips" id="cardChips" role="radiogroup" aria-label="Carte utilisée"></div>
+    </div>
+    <div class="group" id="excGroup">
+      <label class="label" for="excSel">Type de dépense</label>
+      <select class="field" id="excSel">
+          <option value="">Dépense normale</option>
+          <option value="1">Exceptionnelle · rattraper le mois prochain</option>
+          <option value="2">Exceptionnelle · rattraper sur 2 mois</option>
+          <option value="3">Exceptionnelle · rattraper sur 3 mois</option>
+          <option value="6">Exceptionnelle · rattraper sur 6 mois</option>
+          <option value="0">Exceptionnelle · prise sur l'épargne, sans rattrapage</option>
+      </select>
+      <p class="hint" id="excHint" hidden>Une dépense exceptionnelle (hôpital, cadeau…) est payée avec votre épargne : elle ne touche pas votre objectif du jour. Le rattrapage remet cet argent de côté sur les mois suivants.</p>
     </div>
     <div class="row">
       <input class="field" id="date" type="date" aria-label="Date">
@@ -598,12 +619,31 @@ details.card[open] > summary::after { content: "–"; }
   // ---------- money logic ----------
   // Savings to put aside in a given month. With a long-term goal:
   // (target - already saved) spread evenly over the months from the current month to the goal month, both included.
+  // Exceptional expenses are paid from savings in the period they happen (from), then put back
+  // in equal parts over the next `months` periods ("rattrapage"), which come off the daily budget.
+  function repayIn(s, key) {
+    return (s.repays || []).reduce((a, r) => {
+      const d = monthsBetween(r.from, key);
+      return a + (d >= 1 && d <= r.months ? Number(r.amount) / r.months : 0);
+    }, 0);
+  }
+  // Part of the savings gap that the repayment plans will already cover: only for expenses whose
+  // period has been closed (so "Déjà épargné" already went down), counting the installments still to come.
+  function repayPending(s) {
+    const closed = s.lastClosed || "";
+    if (!closed) return 0;
+    return (s.repays || []).reduce((a, r) => {
+      if (r.from > closed) return a;
+      const done = Math.min(Math.max(monthsBetween(r.from, closed), 0), r.months);
+      return a + Number(r.amount) / r.months * (r.months - done);
+    }, 0);
+  }
   function savingsFor(s, key) {
     const g = s.goal || {};
     const target = Number(g.target) || 0, saved = Number(g.saved) || 0;
     if (target > 0 && g.month) {
       const now = currentPeriod();
-      const left = Math.max(target - saved, 0);
+      const left = Math.max(target - saved - repayPending(s), 0);
       const months = monthsBetween(now, g.month) + 1;
       if (left === 0) return { amount: 0, months, left, fromGoal: true };
       if (months <= 0) return { amount: 0, months: 0, left, fromGoal: true, passed: true };
@@ -629,7 +669,7 @@ details.card[open] > summary::after { content: "–"; }
     const envs = envelopes(s);
     const envCats = new Set(envs.map((e) => e.cat));
     const envStats = envs.map((e) => {
-      const spentE = sum(state.items.filter((t) => t.cat === e.cat && !t.sub));
+      const spentE = sum(state.items.filter((t) => t.cat === e.cat && !t.sub && !t.exc));
       return { ...e, spent: spentE, left: e.amount - spentE };
     });
     const envReserved = envStats.reduce((a, e) => a + Math.max(e.amount, e.spent), 0);
@@ -640,13 +680,14 @@ details.card[open] > summary::after { content: "–"; }
       const v = toMain(Number(sb.amount), sb.currency || mainCur());
       return a + (v || 0);
     }, 0);
-    const daily = state.items.filter((t) => !envCats.has(t.cat) && !t.sub);
-    const budget = income - fixed - subsReserved - savings - envReserved;   // what can be spent day to day this month
+    const daily = state.items.filter((t) => !envCats.has(t.cat) && !t.sub && !t.exc);
+    const repay = round2(repayIn(s, state.month));
+    const budget = income - fixed - subsReserved - savings - repay - envReserved;   // what can be spent day to day this month
     const spent = sum(daily);
     const remaining = round2(budget - spent);
     const now = currentPeriod();
     const today = todayISO();
-    const r = { income, baseIncome, received, fixed, subsReserved, savings, budget, spent, remaining, envStats, envReserved, envCats, view: state.month === now ? "current" : (state.month > now ? "future" : "past") };
+    const r = { income, baseIncome, received, fixed, subsReserved, repay, savings, budget, spent, remaining, envStats, envReserved, envCats, view: state.month === now ? "current" : (state.month > now ? "future" : "past") };
     if (r.view === "current") {
       const t0 = new Date(); const midnight = new Date(t0.getFullYear(), t0.getMonth(), t0.getDate());
       const daysLeft = Math.round((periodEnd(state.month) - midnight) / 86400000);   // today included
@@ -671,7 +712,7 @@ details.card[open] > summary::after { content: "–"; }
     $("monthLabel").textContent = periodTitle(state.month);
     $("next").disabled = state.month >= shiftMonth(currentPeriod(), 1);
     renderCurPick();
-    renderHero(); renderEnvelopes(); renderSubs(); renderSavings(); renderCards(); renderBreakdown(); renderTx();
+    renderHero(); renderEnvelopes(); renderSubs(); renderSavings(); renderRepays(); renderCards(); renderBreakdown(); renderTx();
     $("exportBtn").hidden = !(downloads && state.items.length);
   }
 
@@ -749,13 +790,14 @@ details.card[open] > summary::after { content: "–"; }
     const outside = allSpent - c.spent;
     $("paceText").textContent = fmt(c.spent) + " dépensés au quotidien sur " + fmt(Math.max(c.budget, 0)) + " (" + pct(used) + ")"
       + (c.view === "current" ? " · encore " + c.daysLeft + (c.daysLeft > 1 ? " jours" : " jour") : "")
-      + (outside > 0.005 ? ". Total du mois : " + fmt(allSpent) + " (dont " + fmt(outside) + " d'enveloppes et d'abonnements, comptés à part)." : ".");
+      + (outside > 0.005 ? ". Total du mois : " + fmt(allSpent) + " (dont " + fmt(outside) + " comptés à part : enveloppes, abonnements, dépenses exceptionnelles)." : ".");
     // The calculation, as a receipt.
     const rows = [
       ["", "Revenus", c.baseIncome],
       ["plus", "Argent reçu", c.received],
       ["minus", "Fixes et abonnements", -(c.fixed + c.subsReserved)],
       ["minus", "Épargne du mois", -c.savings],
+      ["minus", "Rattrapage exceptionnel", -c.repay],
       ["minus", "Enveloppes", -c.envReserved],
       ["sub-total", "Budget du quotidien", c.budget],
       ["minus", "Déjà dépensé au quotidien", -c.spent],
@@ -1054,6 +1096,32 @@ details.card[open] > summary::after { content: "–"; }
     }
   }
 
+  function renderRepays() {
+    const box = $("repayBody"); box.innerHTML = "";
+    const cur = currentPeriod();
+    const active = (cfg().repays || []).filter((r) => monthsBetween(r.from, cur) < r.months);
+    box.hidden = !active.length;
+    if (!active.length) return;
+    const h = document.createElement("div"); h.className = "label"; h.textContent = "Rattrapages en cours"; box.append(h);
+    active.forEach((r) => {
+      const per = Number(r.amount) / r.months;
+      const done = Math.min(Math.max(monthsBetween(r.from, cur) - 1, 0), r.months);   // installments of past periods
+      const el = document.createElement("div"); el.className = "repay num";
+      const top = document.createElement("div"); top.className = "repay-top";
+      const a = document.createElement("b"); a.textContent = r.label || "Dépense exceptionnelle";
+      const b = document.createElement("span"); b.textContent = fmt(per) + " / mois · " + fmt(Number(r.amount)) + " au total";
+      top.append(a, b);
+      const track = document.createElement("div"); track.className = "save-track";
+      track.innerHTML = '<span style="width:' + (done / r.months * 100).toFixed(1) + '%"></span>';
+      const note = document.createElement("p");
+      const first = shiftMonth(r.from, 1), last = shiftMonth(r.from, r.months);
+      note.textContent = r.from === cur
+        ? dot("Payée avec votre épargne ce mois-ci. Le rattrapage commence le " + shortDate(isoOf(periodStart(first))) + " et finit le " + shortDate(isoOf(lastDay(last))))
+        : dot("Mois " + (done + 1) + " sur " + r.months + " : " + fmt(per) + " déjà retirés de votre budget du jour. Fin le " + shortDate(isoOf(lastDay(last))));
+      el.append(top, track, note); box.append(el);
+    });
+  }
+
   function cardName(id) { const c = (cfg().cards || []).find((x) => x.id === id); return c ? c.label : (id ? "Carte supprimée" : "Sans carte"); }
 
   function renderBreakdown() {
@@ -1147,7 +1215,7 @@ details.card[open] > summary::after { content: "–"; }
       what.setAttribute("aria-label", "Modifier " + (t.label || t.cat));
       what.onclick = () => { state.editTx = state.editTx === t.id ? null : t.id; state.pendingDelete = null; renderTx(); };
       const l1 = document.createElement("div"); l1.textContent = t.label || t.cat;
-      const l2 = document.createElement("div"); l2.textContent = t.cat + " · " + cardName(t.card) + (t.sub ? " · abonnement" : "") + (t.orig ? " · " + fmtIn(Number(t.orig.amount), t.orig.currency) + " converti" : "");
+      const l2 = document.createElement("div"); l2.textContent = t.cat + " · " + cardName(t.card) + (t.sub ? " · abonnement" : "") + (t.exc ? " · exceptionnelle" : "") + (t.orig ? " · " + fmtIn(Number(t.orig.amount), t.orig.currency) + " converti" : "");
       what.append(l1, l2);
       const amt = document.createElement("div"); amt.className = "amt num"; amt.textContent = "−" + fmt(Number(t.amount));
       row.append(what, amt);
@@ -1191,6 +1259,14 @@ details.card[open] > summary::after { content: "–"; }
     card.value = t.card || (cards[0] || [""])[0];
     const r1 = mk("div", "row"); r1.append(amt, date);
     const r2 = mk("div", "row"); r2.append(cat, card);
+    const exc = mk("select", "field", { id: "edit-exc-" + t.id }); exc.setAttribute("aria-label", "Type de dépense");
+    exc.innerHTML = `<option value="">Dépense normale</option>
+          <option value="1">Exceptionnelle · rattraper le mois prochain</option>
+          <option value="2">Exceptionnelle · rattraper sur 2 mois</option>
+          <option value="3">Exceptionnelle · rattraper sur 3 mois</option>
+          <option value="6">Exceptionnelle · rattraper sur 6 mois</option>
+          <option value="0">Exceptionnelle · prise sur l'épargne, sans rattrapage</option>`;
+    exc.value = t.exc ? String(Number(t.repay) || 0) : "";
     const save = mk("button", "primary", { type: "button", textContent: "Enregistrer" });
     const cancel = mk("button", "ghost", { type: "button", textContent: "Annuler" });
     const r3 = mk("div", "row"); r3.append(save, cancel);
@@ -1201,16 +1277,24 @@ details.card[open] > summary::after { content: "–"; }
       const a = round2(parseFloat(String(amt.value).replace(",", ".")));
       if (!(a > 0)) { note.className = "msg err"; note.textContent = "Entrez un montant supérieur à 0."; amt.focus(); return; }
       if (!date.value) { note.className = "msg err"; note.textContent = "Choisissez une date."; return; }
-      saveEdit(t.id, { label: desc.value.trim(), amount: a, date: date.value, cat: cat.value, card: card.value });
+      const ex = exc.value;
+      saveEdit(t.id, { label: desc.value.trim(), amount: a, date: date.value, cat: cat.value, card: card.value, exc: ex !== "", repay: ex === "" ? 0 : Number(ex) });
     };
-    f.append(desc, r1, r2, r3, note);
+    if (t.sub) exc.hidden = true;
+    f.append(desc, r1, r2, exc, r3, note);
     return f;
   }
   async function saveEdit(id, patch) {
     const old = state.items.find((x) => x.id === id);
     if (!old) return;
     const upd = { ...old, ...patch };
+    if (!upd.exc) { delete upd.exc; delete upd.repay; }
     if (Math.abs(patch.amount - Number(old.amount)) >= 0.005) delete upd.orig;
+    if (old.exc || upd.exc) {
+      const next = withRepay(upd);
+      state.settings = next;
+      if (state.mode === "live") queueWrite(settingsPath(), next).catch(() => {});
+    }
     const oldKey = old.date.slice(0, 7), newKey = upd.date.slice(0, 7);
     state.items = inPeriod(upd.date, state.month) ? state.items.map((x) => (x.id === id ? upd : x)) : state.items.filter((x) => x.id !== id);
     state.editTx = null;
@@ -1221,7 +1305,8 @@ details.card[open] > summary::after { content: "–"; }
     }
     render();
     const msg = $("addMsg"); msg.className = "msg";
-    msg.textContent = "Dépense modifiée" + (inPeriod(upd.date, state.month) ? "." : " et déplacée vers la période " + periodTitle(periodOf(upd.date)) + ".");
+    msg.textContent = (upd.exc && !old.exc) ? excText(upd)
+      : "Dépense modifiée" + (inPeriod(upd.date, state.month) ? "." : " et déplacée vers la période " + periodTitle(periodOf(upd.date)) + ".");
     if (state.mode !== "live") return;
     try {
       await queueWrite(monthPath(oldKey), { items: state.docs[oldKey] });
@@ -1410,6 +1495,7 @@ details.card[open] > summary::after { content: "–"; }
     $("modeOut").setAttribute("aria-pressed", !inMode);
     $("modeIn").setAttribute("aria-pressed", inMode);
     $("catGroup").hidden = inMode;
+    $("excGroup").hidden = inMode;
     $("pasteBtn").hidden = inMode;
     $("pasteBox").hidden = true;
     $("inHint").hidden = !inMode;
@@ -1461,6 +1547,14 @@ details.card[open] > summary::after { content: "–"; }
     const cat = state.catEdit ? (state.lastCat || "Autre") : ((document.querySelector('input[name="cat"]:checked') || {}).value || "Autre");
     const card = (document.querySelector('input[name="card"]:checked') || {}).value || "";
     const tx = { id: uidGen(), amount, label: $("desc").value.trim(), cat, card, date, created: new Date().toISOString() };
+    const excVal = $("excSel").value;
+    if (excVal !== "") {
+      tx.exc = true; tx.repay = Number(excVal);
+      const next = withRepay(tx);
+      state.settings = next;
+      if (state.mode === "live") queueWrite(settingsPath(), next).catch(() => {});
+      $("excSel").value = ""; $("excHint").hidden = true;
+    }
     if (state.pasteCardName && card) {
       const key = state.pasteCardName.toLowerCase();
       const aliases = { ...(cfg().cardAliases || {}) };
@@ -1480,7 +1574,8 @@ details.card[open] > summary::after { content: "–"; }
     if (state.docs[docKey]) state.docs[docKey] = [...state.docs[docKey], tx];
     render();
     const envHit = envelopes(cfg()).find((e) => e.cat === cat);
-    if (inView && envHit) {
+    if (tx.exc) msg.textContent = excText(tx);
+    else if (inView && envHit) {
       const left = envHit.amount - sum(state.items.filter((t) => t.cat === cat));
       msg.textContent = "Ajouté à l'enveloppe " + cat + " : " + (left >= 0 ? "il reste " + fmt(left) + "." : "dépassée de " + fmt(-left) + ".");
     } else
@@ -1498,11 +1593,31 @@ details.card[open] > summary::after { content: "–"; }
     } catch (e) { msg.className = "msg err"; msg.textContent = errText(e); }
   }
 
+  // Keeps settings.repays in step with one exceptional expense; returns the new settings (not yet written).
+  function withRepay(tx) {
+    const list = (cfg().repays || []).filter((r) => r.id !== tx.id);
+    const n = Number(tx.repay) || 0;
+    if (tx.exc && n > 0) list.push({ id: tx.id, label: tx.label || tx.cat, amount: Number(tx.amount), from: periodOf(tx.date), months: n });
+    return { ...cfg(), repays: list };
+  }
+  function dot(str) { return /\.$/.test(str) ? str : str + "."; }
+  function excText(tx) {
+    const n = Number(tx.repay) || 0, from = periodOf(tx.date);
+    if (!n) return "Dépense exceptionnelle prise sur votre épargne : votre objectif du jour ne change pas.";
+    return "Dépense exceptionnelle prise sur votre épargne : votre objectif du jour ne change pas. Rattrapage : " + fmt(Number(tx.amount) / n) + " par mois"
+      + dot(n > 1 ? " pendant " + n + " mois, à partir du " + shortDate(isoOf(periodStart(shiftMonth(from, 1)))) : " le mois prochain");
+  }
+
   async function deleteTx(id) {
     const tx = state.items.find((t) => t.id === id);
     state.items = state.items.filter((t) => t.id !== id);
     state.pendingDelete = null; render();
     if (!tx) return;
+    if (tx.exc) {
+      const next = { ...cfg(), repays: (cfg().repays || []).filter((r) => r.id !== tx.id) };
+      state.settings = next; render();
+      if (state.mode === "live") queueWrite(settingsPath(), next).catch(() => {});
+    }
     if (tx.sub && state.mode === "live") {
       const skip = tx.sub + "|" + periodOf(tx.date);
       const next = { ...cfg(), subSkips: [...(cfg().subSkips || []), skip].slice(-60) };
@@ -1587,6 +1702,7 @@ details.card[open] > summary::after { content: "–"; }
       lastClosed: cfg().lastClosed || "",
       cardAliases: cfg().cardAliases || {},
       extras: cfg().extras || [],
+      repays: cfg().repays || [],
     };
   }
   function updateTotals() {
@@ -1641,7 +1757,7 @@ details.card[open] > summary::after { content: "–"; }
 
   // ---------- store ----------
   function normalize(d) {
-    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "", cardAliases: d.cardAliases || {}, extras: d.extras || [] };
+    return { ...DEFAULT_SETTINGS, ...d, incomes: d.incomes || [], fixed: d.fixed || [], goal: { ...DEFAULT_SETTINGS.goal, ...(d.goal || {}) }, cards: d.cards && d.cards.length ? d.cards : DEFAULT_CARDS, categories: d.categories && d.categories.length ? d.categories : DEFAULT_CATS, startDay: d.startDay || 25, envelopes: d.envelopes || [], subscriptions: d.subscriptions || [], subSkips: d.subSkips || [], lastClosed: d.lastClosed || "", cardAliases: d.cardAliases || {}, extras: d.extras || [], repays: d.repays || [] };
   }
   function subscribeSettings() {
     db.doc(settingsPath()).onSnapshot((snap) => {
@@ -1733,6 +1849,7 @@ details.card[open] > summary::after { content: "–"; }
   $("date").value = todayISO();
   $("addForm").addEventListener("submit", addTx);
   $("modeOut").onclick = () => setMode("out");
+  $("excSel").addEventListener("change", () => { $("excHint").hidden = $("excSel").value === ""; });
   $("modeIn").onclick = () => setMode("in");
   $("pasteBtn").onclick = pasteApplePay;
   $("pasteBox").addEventListener("paste", (e) => { const t = (e.clipboardData || window.clipboardData).getData("text"); if (t) { e.preventDefault(); applyPaste(t); } });
